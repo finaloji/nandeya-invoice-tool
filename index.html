@@ -67,6 +67,26 @@
   .qi-sub { font-size: 12px; color: #8e44ad; font-weight: bold; margin: 8px 0 6px; }
   .qi-divider { border: none; border-top: 1px dashed #ccc; margin: 10px 0; }
 
+  .btn-history { position: fixed; top: 10px; left: 10px; z-index: 100; background: #34495e; color: #fff; border: none; border-radius: 6px; padding: 8px 14px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+  .history-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.5); z-index: 200; }
+  .history-overlay.open { display: block; }
+  .history-panel { position: fixed; top: 0; left: 0; width: 85%; max-width: 400px; height: 100%; background: #fff; z-index: 201; overflow-y: auto; padding: 16px; box-shadow: 2px 0 10px rgba(0,0,0,.3); }
+  .history-panel h2 { font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .history-panel .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #333; padding: 0 4px; }
+  .history-card { background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
+  .history-card .hc-type { display: inline-block; font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 3px; color: #fff; margin-bottom: 4px; }
+  .hc-type.estimate { background: #3498db; }
+  .hc-type.invoice { background: #e67e22; }
+  .history-card .hc-date { font-size: 12px; color: #888; display: inline-block; margin-left: 6px; }
+  .history-card .hc-customer { font-size: 14px; font-weight: bold; margin: 4px 0; }
+  .history-card .hc-magician { font-size: 12px; color: #8e44ad; }
+  .history-card .hc-total { font-size: 15px; font-weight: bold; color: #c0392b; margin: 4px 0; }
+  .history-card .hc-actions { display: flex; gap: 6px; margin-top: 6px; }
+  .history-card .hc-actions button { flex: 1; padding: 7px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+  .hc-restore { background: #27ae60; color: #fff; }
+  .hc-delete { background: #e74c3c; color: #fff; }
+  .history-empty { text-align: center; color: #999; font-size: 13px; margin-top: 40px; }
+
   /* === プレビュー／印刷エリア共通 === */
   .print-area { display: none; }
 
@@ -158,6 +178,16 @@
 </style>
 </head>
 <body>
+
+<!-- 履歴ボタン -->
+<button class="btn-history" onclick="toggleHistory()">履歴</button>
+
+<!-- 履歴パネル -->
+<div class="history-overlay" id="historyOverlay" onclick="toggleHistory()"></div>
+<div class="history-panel" id="historyPanel" style="display:none;">
+  <h2>作成履歴<button class="close-btn" onclick="toggleHistory()">×</button></h2>
+  <div id="historyList"></div>
+</div>
 
 <!-- ============ 入力フォーム ============ -->
 <div class="input-area">
@@ -636,7 +666,133 @@ function doPrint() {
   var el = document.getElementById('printArea');
   el.classList.remove('show-preview');
   updatePreview();
+  saveHistory();
   window.print();
+}
+
+function getHistoryData() {
+  var rows = getRows();
+  var magician = document.getElementById('magicianSelect').value || '';
+  var names = [];
+  for (var i = 0; i < rows.length; i++) {
+    var m = rows[i].name.match(/（(.+?)）/);
+    if (m && names.indexOf(m[1]) === -1) names.push(m[1]);
+  }
+  if (!magician && names.length > 0) magician = names.join(', ');
+
+  return {
+    id: Date.now(),
+    docType: docType,
+    docNumber: document.getElementById('docNumber').value,
+    issueDate: document.getElementById('issueDate').value,
+    dueDate: document.getElementById('dueDate').value,
+    customerName: document.getElementById('customerName').value,
+    contactName: document.getElementById('contactName').value,
+    rows: rows,
+    transportation: parseInt(document.getElementById('transportation').value) || 0,
+    discount: parseInt(document.getElementById('discount').value) || 0,
+    notes: document.getElementById('notes').value,
+    total: document.getElementById('dispTotal').textContent,
+    magician: magician
+  };
+}
+
+function saveHistory() {
+  var data = getHistoryData();
+  var history = JSON.parse(localStorage.getItem('nandeya_history') || '[]');
+  history.unshift(data);
+  if (history.length > 50) history = history.slice(0, 50);
+  localStorage.setItem('nandeya_history', JSON.stringify(history));
+}
+
+function loadHistory() {
+  return JSON.parse(localStorage.getItem('nandeya_history') || '[]');
+}
+
+function toggleHistory() {
+  var overlay = document.getElementById('historyOverlay');
+  var panel = document.getElementById('historyPanel');
+  if (panel.style.display === 'none') {
+    renderHistory();
+    panel.style.display = 'block';
+    overlay.classList.add('open');
+  } else {
+    panel.style.display = 'none';
+    overlay.classList.remove('open');
+  }
+}
+
+function renderHistory() {
+  var history = loadHistory();
+  var list = document.getElementById('historyList');
+  if (history.length === 0) {
+    list.innerHTML = '<div class="history-empty">履歴はまだありません</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < history.length; i++) {
+    var h = history[i];
+    var typeLabel = h.docType === 'estimate' ? '見積書' : '請求書';
+    var typeClass = h.docType === 'estimate' ? 'estimate' : 'invoice';
+    var dateStr = '';
+    if (h.issueDate) {
+      var p = h.issueDate.split('-');
+      dateStr = p[0].slice(2) + '/' + parseInt(p[1]) + '/' + parseInt(p[2]);
+    } else {
+      var d = new Date(h.id);
+      dateStr = d.getFullYear().toString().slice(2) + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+    }
+    html += '<div class="history-card">' +
+      '<span class="hc-type ' + typeClass + '">' + typeLabel + '</span>' +
+      '<span class="hc-date">' + dateStr + '</span>' +
+      '<div class="hc-customer">' + escapeHtml(h.customerName || '宛名なし') + ' 様</div>' +
+      (h.magician ? '<div class="hc-magician">' + escapeHtml(h.magician) + '</div>' : '') +
+      '<div class="hc-total">' + h.total + '</div>' +
+      '<div class="hc-actions">' +
+      '<button class="hc-restore" onclick="restoreHistory(' + i + ')">この内容で作成</button>' +
+      '<button class="hc-delete" onclick="deleteHistory(' + i + ')">削除</button>' +
+      '</div></div>';
+  }
+  list.innerHTML = html;
+}
+
+function restoreHistory(index) {
+  var history = loadHistory();
+  var h = history[index];
+
+  docType = h.docType;
+  document.getElementById('btnEstimate').className = docType === 'estimate' ? 'active' : '';
+  document.getElementById('btnInvoice').className = docType === 'invoice' ? 'active' : '';
+  document.getElementById('issueDate').value = h.issueDate || '';
+  document.getElementById('dueDate').value = h.dueDate || '';
+  document.getElementById('customerName').value = h.customerName || '';
+  document.getElementById('contactName').value = h.contactName || '';
+  document.getElementById('transportation').value = h.transportation || 0;
+  document.getElementById('discount').value = h.discount || 0;
+  document.getElementById('notes').value = h.notes || buildDefaultNotes();
+
+  document.getElementById('detailRows').innerHTML = '';
+  rowId = 0;
+  for (var i = 0; i < h.rows.length; i++) {
+    quickAdd(h.rows[i].name, h.rows[i].price);
+    if (h.rows[i].qty !== 1) {
+      var allRows = document.querySelectorAll('.detail-row');
+      var lastRow = allRows[allRows.length - 1];
+      lastRow.querySelectorAll('input')[1].value = h.rows[i].qty;
+    }
+  }
+
+  generateDocNumber();
+  calculate();
+  toggleHistory();
+}
+
+function deleteHistory(index) {
+  if (!confirm('この履歴を削除しますか？')) return;
+  var history = loadHistory();
+  history.splice(index, 1);
+  localStorage.setItem('nandeya_history', JSON.stringify(history));
+  renderHistory();
 }
 
 function buildDefaultNotes() {
