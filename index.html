@@ -56,6 +56,17 @@
   .doc-number-row > div:last-child { flex: 0 0 auto; }
   .btn-gen { background: #8e44ad; color: #fff; padding: 8px 12px; font-size: 13px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 10px; white-space: nowrap; }
 
+  .quick-input { background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
+  .quick-input .qi-title { font-size: 13px; font-weight: bold; color: #8e44ad; margin-bottom: 8px; }
+  .quick-input select { margin-bottom: 8px; }
+  .menu-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+  .menu-btn { padding: 8px 10px; font-size: 13px; border: 1px solid #4a90d9; border-radius: 5px; background: #fff; color: #333; cursor: pointer; text-align: left; flex: 1 1 calc(50% - 3px); min-width: 140px; }
+  .menu-btn:active { background: #4a90d9; color: #fff; }
+  .menu-btn .menu-price { font-size: 12px; color: #888; }
+  .menu-btn:active .menu-price { color: #ddd; }
+  .qi-sub { font-size: 12px; color: #8e44ad; font-weight: bold; margin: 8px 0 6px; }
+  .qi-divider { border: none; border-top: 1px dashed #ccc; margin: 10px 0; }
+
   /* === プレビュー／印刷エリア共通 === */
   .print-area { display: none; }
 
@@ -183,6 +194,39 @@
     <input type="text" id="contactName" placeholder="例: 山田太郎" oninput="updatePreview()">
   </div>
 
+  <!-- かんたん入力 -->
+  <div class="section">
+    <div class="section-title">かんたん入力</div>
+    <div class="quick-input">
+      <div class="qi-title">マジシャンを選択</div>
+      <select id="magicianSelect" onchange="showMagicianMenu()">
+        <option value="">-- 選択してください --</option>
+        <option value="大輝">大輝</option>
+        <option value="パンドラ">パンドラ</option>
+        <option value="まさゆき">まさゆき</option>
+        <option value="滝沢涼">滝沢涼</option>
+        <option value="輝">輝</option>
+        <option value="Junmaki">Junmaki</option>
+        <option value="ちゃっぴー">ちゃっぴー</option>
+      </select>
+      <div id="magicianMenu" class="menu-buttons"></div>
+
+      <hr class="qi-divider">
+      <div class="qi-sub">オプション</div>
+      <div class="menu-buttons" id="optionMenu"></div>
+
+      <hr class="qi-divider">
+      <div class="qi-sub">その他の項目</div>
+      <div class="menu-buttons">
+        <button class="menu-btn" onclick="quickAdd('マジシャン追加費用', 0)">マジシャン追加費用<br><span class="menu-price">単価を手入力</span></button>
+        <button class="menu-btn" onclick="quickAdd('照明代', 30000)">照明代<br><span class="menu-price">¥30,000</span></button>
+        <button class="menu-btn" onclick="quickAdd('スモーク代', 5000)">スモーク代<br><span class="menu-price">¥5,000</span></button>
+        <button class="menu-btn" onclick="quickAdd('簡易ステージ設営費', 5000)">簡易ステージ設営費<br><span class="menu-price">¥5,000/㎡</span></button>
+        <button class="menu-btn" onclick="quickAdd('キャンセル代', 0)">キャンセル代<br><span class="menu-price">単価を手入力</span></button>
+      </div>
+    </div>
+  </div>
+
   <!-- 明細 -->
   <div class="section">
     <div class="section-title">明細</div>
@@ -194,7 +238,7 @@
       <div class="col-del"></div>
     </div>
     <div id="detailRows"></div>
-    <button class="btn btn-add" onclick="addRow()">＋ 行を追加</button>
+    <button class="btn btn-add" onclick="addRow()">＋ 手入力で行を追加</button>
   </div>
 
   <!-- 交通費・値引き -->
@@ -299,6 +343,118 @@
 <script>
 var docType = 'estimate';
 var rowId = 0;
+
+var magicianData = {
+  '大輝': [
+    { label: 'テーブル', name: 'テーブルマジックショー公演費（大輝）', price: 50000 },
+    { label: 'サロン', name: 'サロンマジックショー公演費（大輝）', price: 80000 },
+    { label: 'ステージ', name: 'ステージマジックショー公演費（大輝）', price: 120000 },
+    { label: 'イリュージョン', name: 'イリュージョンマジックショー公演費（大輝）', price: 180000 }
+  ],
+  'パンドラ': [
+    { label: 'テーブル', name: 'テーブルマジックショー公演費（パンドラ）', price: 40000 },
+    { label: 'サロン', name: 'サロンマジックショー公演費（パンドラ）', price: 60000 },
+    { label: 'ステージ', name: 'ステージマジックショー公演費（パンドラ）', price: 100000 }
+  ],
+  'まさゆき': [
+    { label: 'テーブル', name: 'テーブルマジックショー公演費（まさゆき）', price: 30000 },
+    { label: 'サロン', name: 'サロンマジックショー公演費（まさゆき）', price: 50000 },
+    { label: 'ステージ', name: 'ステージマジックショー公演費（まさゆき）', price: 90000 },
+    { label: 'イリュージョン', name: 'イリュージョンマジックショー公演費（まさゆき）', price: 140000 },
+    { label: '催眠術', name: '催眠術ショー公演費（まさゆき）', price: 30000 }
+  ],
+  '滝沢涼': [
+    { label: 'テーブル', name: 'テーブルマジックショー公演費（滝沢涼）', price: 45000 },
+    { label: 'サロン', name: 'サロンマジックショー公演費（滝沢涼）', price: 50000 }
+  ],
+  '輝': [
+    { label: 'テーブル', name: 'テーブルマジックショー公演費（輝）', price: 35000 },
+    { label: 'サロン', name: 'サロンマジックショー公演費（輝）', price: 60000 }
+  ],
+  'Junmaki': [
+    { label: 'サロン', name: 'サロンマジックショー公演費（Junmaki）', price: 80000 },
+    { label: '和風サロン', name: '和風サロンマジックショー公演費（Junmaki）', price: 120000 },
+    { label: 'サロン＆バルーン', name: 'サロンマジック＆バルーンショー公演費（Junmaki）', price: 120000 },
+    { label: 'バルーングリーティング', name: 'バルーングリーティング公演費（Junmaki）', price: 80000 },
+    { label: 'バルーンアートショー', name: 'バルーンアートショー公演費（Junmaki）', price: 120000 }
+  ],
+  'ちゃっぴー': [
+    { label: 'テーブル', name: 'テーブルマジックショー公演費（ちゃっぴー）', price: 60000 },
+    { label: 'サロン', name: 'サロンマジックショー公演費（ちゃっぴー）', price: 100000 },
+    { label: 'イリュージョン', name: 'イリュージョンマジックショー公演費（ちゃっぴー）', price: 280000 }
+  ]
+};
+
+var optionData = {
+  'Junmaki': [
+    { label: '変面', name: '変面オプション（Junmaki）', price: 40000 },
+    { label: 'バルーンプレゼント', name: 'バルーンプレゼントオプション（Junmaki）', price: 15000 }
+  ],
+  'ちゃっぴー': [
+    { label: '変面', name: '変面オプション（ちゃっぴー）', price: 50000 },
+    { label: 'ジャグリング', name: 'ジャグリングオプション（ちゃっぴー）', price: 10000 }
+  ]
+};
+
+function showMagicianMenu() {
+  var sel = document.getElementById('magicianSelect').value;
+  var menuDiv = document.getElementById('magicianMenu');
+  var optDiv = document.getElementById('optionMenu');
+  menuDiv.innerHTML = '';
+  optDiv.innerHTML = '';
+
+  if (!sel) return;
+
+  var items = magicianData[sel] || [];
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    var btn = document.createElement('button');
+    btn.className = 'menu-btn';
+    btn.innerHTML = item.label + '<br><span class="menu-price">' + formatYen(item.price) + '</span>';
+    btn.setAttribute('data-name', item.name);
+    btn.setAttribute('data-price', item.price);
+    btn.onclick = function() {
+      quickAdd(this.getAttribute('data-name'), parseInt(this.getAttribute('data-price')));
+    };
+    menuDiv.appendChild(btn);
+  }
+
+  var opts = optionData[sel] || [];
+  if (opts.length === 0) {
+    optDiv.innerHTML = '<span style="font-size:12px;color:#999;">このマジシャンのオプションはありません</span>';
+  }
+  for (var j = 0; j < opts.length; j++) {
+    var opt = opts[j];
+    var obtn = document.createElement('button');
+    obtn.className = 'menu-btn';
+    obtn.innerHTML = '＋' + opt.label + '<br><span class="menu-price">' + formatYen(opt.price) + '</span>';
+    obtn.setAttribute('data-name', opt.name);
+    obtn.setAttribute('data-price', opt.price);
+    obtn.onclick = function() {
+      quickAdd(this.getAttribute('data-name'), parseInt(this.getAttribute('data-price')));
+    };
+    optDiv.appendChild(obtn);
+  }
+}
+
+function quickAdd(name, price) {
+  rowId++;
+  var div = document.createElement('div');
+  div.className = 'detail-row row';
+  div.id = 'row-' + rowId;
+  div.innerHTML =
+    '<div class="col-name"><input type="text" value="' + escapeAttr(name) + '" oninput="calculate()"></div>' +
+    '<div class="col-qty"><input type="number" value="1" min="0" oninput="calculate()"></div>' +
+    '<div class="col-price"><input type="number" value="' + price + '" min="0" oninput="calculate()"></div>' +
+    '<div class="col-amt"><span>¥0</span></div>' +
+    '<div class="col-del"><button class="btn-del" onclick="delRow(\'' + div.id + '\')">×</button></div>';
+  document.getElementById('detailRows').appendChild(div);
+  calculate();
+}
+
+function escapeAttr(str) {
+  return str.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
 function setType(type) {
   docType = type;
