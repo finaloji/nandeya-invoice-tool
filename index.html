@@ -479,23 +479,25 @@ function togglePreview() {
 
 function doPrint() {
   updatePreview();
-  var el = document.getElementById('printArea');
   var btn = document.querySelector('.btn-print');
   btn.textContent = 'PDF作成中...';
   btn.disabled = true;
 
-  el.classList.remove('show-preview');
-  el.style.display = 'block';
-  el.style.position = 'fixed';
-  el.style.left = '0';
-  el.style.top = '0';
-  el.style.width = '210mm';
-  el.style.minHeight = '297mm';
-  el.style.padding = '15mm 18mm';
-  el.style.fontSize = '11pt';
-  el.style.color = '#000';
-  el.style.background = '#fff';
-  el.style.zIndex = '-1';
+  var original = document.getElementById('printArea');
+  original.classList.remove('show-preview');
+
+  var clone = original.cloneNode(true);
+  clone.style.display = 'block';
+  clone.style.width = '210mm';
+  clone.style.minHeight = '297mm';
+  clone.style.padding = '15mm 18mm';
+  clone.style.fontSize = '11pt';
+  clone.style.color = '#000';
+  clone.style.background = '#fff';
+  clone.style.position = 'absolute';
+  clone.style.left = '-9999px';
+  clone.style.top = '0';
+  document.body.appendChild(clone);
 
   var d = new Date();
   var issueDateVal = document.getElementById('issueDate').value;
@@ -515,20 +517,10 @@ function doPrint() {
       margin: 0,
       filename: filename,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+      html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: clone.scrollWidth },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    }).from(el).save().then(function() {
-      el.style.display = '';
-      el.style.position = '';
-      el.style.left = '';
-      el.style.top = '';
-      el.style.width = '';
-      el.style.minHeight = '';
-      el.style.padding = '';
-      el.style.fontSize = '';
-      el.style.color = '';
-      el.style.background = '';
-      el.style.zIndex = '';
+    }).from(clone).save().then(function() {
+      document.body.removeChild(clone);
       btn.textContent = 'PDF保存';
       btn.disabled = false;
     });
