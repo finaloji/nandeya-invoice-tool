@@ -480,31 +480,49 @@ function togglePreview() {
 function doPrint() {
   updatePreview();
   var el = document.getElementById('printArea');
+  var btn = document.querySelector('.btn-print');
+  btn.textContent = 'PDF作成中...';
+  btn.disabled = true;
+
   el.classList.remove('show-preview');
   el.style.display = 'block';
+  el.style.position = 'fixed';
+  el.style.left = '0';
+  el.style.top = '0';
   el.style.width = '210mm';
+  el.style.minHeight = '297mm';
   el.style.padding = '15mm 18mm';
   el.style.fontSize = '11pt';
   el.style.color = '#000';
   el.style.background = '#fff';
+  el.style.zIndex = '-1';
 
   var docNum = document.getElementById('docNumber').value || 'document';
   var filename = (docType === 'estimate' ? '見積書' : '請求書') + '_' + docNum + '.pdf';
 
-  html2pdf().set({
-    margin: 0,
-    filename: filename,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  }).from(el).save().then(function() {
-    el.style.display = '';
-    el.style.width = '';
-    el.style.padding = '';
-    el.style.fontSize = '';
-    el.style.color = '';
-    el.style.background = '';
-  });
+  setTimeout(function() {
+    html2pdf().set({
+      margin: 0,
+      filename: filename,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    }).from(el).save().then(function() {
+      el.style.display = '';
+      el.style.position = '';
+      el.style.left = '';
+      el.style.top = '';
+      el.style.width = '';
+      el.style.minHeight = '';
+      el.style.padding = '';
+      el.style.fontSize = '';
+      el.style.color = '';
+      el.style.background = '';
+      el.style.zIndex = '';
+      btn.textContent = 'PDF保存';
+      btn.disabled = false;
+    });
+  }, 500);
 }
 
 function buildDefaultNotes() {
