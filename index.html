@@ -497,8 +497,18 @@ function doPrint() {
   el.style.background = '#fff';
   el.style.zIndex = '-1';
 
-  var docNum = document.getElementById('docNumber').value || 'document';
-  var filename = (docType === 'estimate' ? '見積書' : '請求書') + '_' + docNum + '.pdf';
+  var d = new Date();
+  var issueDateVal = document.getElementById('issueDate').value;
+  var dateStr;
+  if (issueDateVal) {
+    var p = issueDateVal.split('-');
+    dateStr = p[0].slice(2) + p[1] + p[2];
+  } else {
+    dateStr = d.getFullYear().toString().slice(2) + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2);
+  }
+  var customer = document.getElementById('customerName').value || '宛名なし';
+  var typeName = docType === 'estimate' ? 'お見積書' : 'ご請求書';
+  var filename = dateStr + '_' + customer + '様_' + typeName + '.pdf';
 
   setTimeout(function() {
     html2pdf().set({
