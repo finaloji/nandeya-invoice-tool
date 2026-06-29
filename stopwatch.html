@@ -281,6 +281,29 @@
   }
   .modal-input::placeholder { color: #8e8e93; }
   .modal-input.error { animation: shake 0.3s; }
+  .modal-segment {
+    display: flex;
+    background: #1C1C1E;
+    border-radius: 8px;
+    padding: 2px;
+    margin-top: 12px;
+  }
+  .modal-segment button {
+    flex: 1;
+    padding: 6px 0;
+    border: none;
+    background: transparent;
+    color: #8e8e93;
+    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .modal-segment button.selected {
+    background: #636366;
+    color: #fff;
+  }
+  .modal-cell.hidden { display: none; }
   @keyframes shake {
     25% { transform: translateX(-4px); }
     75% { transform: translateX(4px); }
@@ -378,6 +401,18 @@
         <span class="modal-label">数値補正</span>
         <input type="text" inputmode="numeric" pattern="[0-9]*" id="settingsInput" class="modal-input" placeholder="オフ" maxlength="3">
       </div>
+      <div class="modal-cell" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:12px;">
+        <span class="modal-label">開始条件</span>
+        <div class="modal-segment">
+          <button type="button" data-mode="0" class="selected">なし</button>
+          <button type="button" data-mode="1">回数</button>
+          <button type="button" data-mode="2">時間</button>
+        </div>
+      </div>
+      <div class="modal-cell hidden" id="triggerValueCell" style="margin-top:8px;">
+        <span class="modal-label" id="triggerValueLabel">回数</span>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" id="triggerValueInput" class="modal-input" placeholder="3" maxlength="3">
+      </div>
     </div>
   </div>
 </div>
@@ -397,6 +432,8 @@
   var timer = null;
   var splits = [];
   var lapsEl = document.querySelector('.laps');
+  var stopCount = 0;
+  var firstStart = 0;
 
   function dcc() {
     var v = parseInt(localStorage.getItem('_dcc') || '0', 10);
@@ -411,6 +448,15 @@
     return (min < 10 ? '0' : '') + min + ':' +
            (sec < 10 ? '0' : '') + sec + '.' +
            (cc < 10 ? '0' : '') + cc;
+  }
+
+  function tcActive() {
+    var m = parseInt(localStorage.getItem('_tcm') || '0', 10);
+    var v = parseInt(localStorage.getItem('_tcv') || '0', 10);
+    if (m === 0 || v <= 0) return true;
+    if (m === 1) return stopCount >= v;
+    if (m === 2) return firstStart > 0 && (Date.now() - firstStart) >= v * 1000;
+    return true;
   }
 
   function renderLaps(currentMs) {
@@ -479,6 +525,7 @@
   rightBtn.addEventListener('click', function() {
     if (phase === 0 || phase === 2) {
       // 開始
+      if (firstStart === 0) firstStart = Date.now();
       origin = Date.now();
       timer = setInterval(render, 10);
       phase = 1;
@@ -488,8 +535,9 @@
       clearInterval(timer);
       timer = null;
       phase = 2;
+      stopCount++;
       var _t = dcc();
-      if (_t > 0) {
+      if (_t > 0 && tcActive()) {
         var _c = Math.floor(saved / 10);
         var _s = Math.floor(_c / 100) % 60;
         var _a = _t - _s;
@@ -521,6 +569,8 @@
       saved = 0;
       origin = 0;
       splits = [];
+      stopCount = 0;
+      firstStart = 0;
       lapsEl.innerHTML = '';
       display.textContent = '00:00.00';
       phase = 0;
@@ -552,6 +602,27 @@
   function openSettings() {
     var current = localStorage.getItem('_dcc') || '';
     input.value = (current && current !== '0') ? current : '';
+    var curMode = localStorage.getItem('_tcm') || '0';
+    var curVal = localStorage.getItem('_tcv') || '';
+    document.querySelectorAll('.modal-segment button').forEach(function(btn) {
+      btn.classList.toggle('selected', btn.dataset.mode === curMode);
+    });
+    var triggerCell = document.getElementById('triggerValueCell');
+    var triggerLabel = document.getElementById('triggerValueLabel');
+    var triggerInput = document.getElementById('triggerValueInput');
+    if (curMode === '1') {
+      triggerCell.classList.remove('hidden');
+      triggerLabel.textContent = '回数';
+      triggerInput.placeholder = '3';
+      triggerInput.value = curVal;
+    } else if (curMode === '2') {
+      triggerCell.classList.remove('hidden');
+      triggerLabel.textContent = '秒数';
+      triggerInput.placeholder = '60';
+      triggerInput.value = curVal;
+    } else {
+      triggerCell.classList.add('hidden');
+    }
     overlay.classList.add('visible');
     modalOpen = true;
     requestAnimationFrame(function() {
@@ -569,6 +640,30 @@
     }, 300);
   }
 
+  document.querySelectorAll('.modal-segment button').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.modal-segment button').forEach(function(b) {
+        b.classList.remove('selected');
+      });
+      btn.classList.add('selected');
+      var mode = btn.dataset.mode;
+      var triggerCell = document.getElementById('triggerValueCell');
+      var triggerLabel = document.getElementById('triggerValueLabel');
+      var triggerInput = document.getElementById('triggerValueInput');
+      if (mode === '1') {
+        triggerCell.classList.remove('hidden');
+        triggerLabel.textContent = '回数';
+        triggerInput.placeholder = '3';
+      } else if (mode === '2') {
+        triggerCell.classList.remove('hidden');
+        triggerLabel.textContent = '秒数';
+        triggerInput.placeholder = '60';
+      } else {
+        triggerCell.classList.add('hidden');
+      }
+    });
+  });
+
   document.getElementById('settingsSave').addEventListener('click', function() {
     var val = parseInt(input.value || '0', 10);
     if (isNaN(val) || val < 0 || val > 158) {
@@ -580,6 +675,21 @@
       localStorage.setItem('_dcc', String(val));
     } else {
       localStorage.removeItem('_dcc');
+    }
+    var selMode = document.querySelector('.modal-segment button.selected').dataset.mode;
+    if (selMode === '0') {
+      localStorage.removeItem('_tcm');
+      localStorage.removeItem('_tcv');
+    } else {
+      var triggerInput = document.getElementById('triggerValueInput');
+      var tv = parseInt(triggerInput.value || '0', 10);
+      if (isNaN(tv) || tv < 1) {
+        triggerInput.classList.add('error');
+        setTimeout(function() { triggerInput.classList.remove('error'); }, 300);
+        return;
+      }
+      localStorage.setItem('_tcm', selMode);
+      localStorage.setItem('_tcv', String(tv));
     }
     closeSettings();
   });
