@@ -42,6 +42,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    padding-bottom: 80px;
   }
 
   /* ストップウォッチ表示 */
@@ -161,7 +162,13 @@
   /* 下部タブバー */
   .tab-bar {
     background: #000;
-    padding: 0 8px env(safe-area-inset-bottom);
+    padding: 0 8px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
   }
 
   .tab-bar-inner {
@@ -284,58 +291,6 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 </head>
 <body>
-<script>
-(function() {
-  var c = document.createElement('canvas');
-  c.width = 180; c.height = 180;
-  var ctx = c.getContext('2d');
-
-  // 黒背景
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, 180, 180);
-
-  // ストップウォッチアイコン（オレンジ #FF9F0A）
-  ctx.strokeStyle = '#FF9F0A';
-  ctx.lineWidth = 4;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  // 本体の円
-  ctx.beginPath();
-  ctx.arc(90, 100, 50, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // 上部のボタン（竿）
-  ctx.beginPath();
-  ctx.moveTo(90, 50);
-  ctx.lineTo(90, 38);
-  ctx.stroke();
-
-  // 上部の横棒
-  ctx.beginPath();
-  ctx.moveTo(80, 35);
-  ctx.lineTo(100, 35);
-  ctx.stroke();
-
-  // 右上のリューズ
-  ctx.beginPath();
-  ctx.moveTo(128, 65);
-  ctx.lineTo(120, 73);
-  ctx.stroke();
-
-  // 針（12時方向）
-  ctx.beginPath();
-  ctx.moveTo(90, 100);
-  ctx.lineTo(90, 65);
-  ctx.stroke();
-
-  // data URIでapple-touch-iconを設定
-  var link = document.createElement('link');
-  link.rel = 'apple-touch-icon';
-  link.href = c.toDataURL('image/png');
-  document.head.appendChild(link);
-})();
-</script>
 
 <div class="main">
   <div class="time-display">00:00.00</div>
