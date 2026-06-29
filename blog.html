@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>出張レポートブログ作成ツール</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif; background: #f0f2f5; color: #333; }
+
+.container { max-width: 640px; margin: 0 auto; padding: 12px; }
+h1 { font-size: 18px; text-align: center; margin-bottom: 14px; color: #333; }
+.subtitle { text-align: center; font-size: 12px; color: #888; margin-bottom: 16px; }
+
+.section { background: #fff; border-radius: 8px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.section-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #555; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+
+label { display: block; font-size: 13px; margin-bottom: 3px; color: #666; }
+input, textarea, select { width: 100%; padding: 8px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 10px; -webkit-appearance: none; }
+textarea { resize: vertical; }
+select { background: #fff; }
+
+.show-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 6px; }
+.show-row .show-num { flex: 0 0 30px; font-size: 14px; font-weight: bold; color: #8e44ad; padding: 8px 0; text-align: center; }
+.show-row .show-input { flex: 1; }
+.show-row .show-input input { margin-bottom: 0; }
+.show-row .show-del { flex: 0 0 36px; }
+
+.btn { display: inline-block; padding: 8px 16px; font-size: 14px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+.btn-add { background: #8e44ad; color: #fff; width: 100%; margin-top: 6px; }
+.btn-del { background: #e74c3c; color: #fff; width: 36px; height: 36px; padding: 0; font-size: 18px; line-height: 36px; text-align: center; border-radius: 5px; border: none; cursor: pointer; }
+.btn-generate { background: #27ae60; color: #fff; width: 100%; padding: 14px; font-size: 16px; }
+.btn-copy { background: #3498db; color: #fff; width: 100%; padding: 12px; font-size: 15px; margin-top: 8px; }
+.btn-copy.copied { background: #2ecc71; }
+
+.preview-box { background: #fff; border: 2px solid #8e44ad; border-radius: 8px; padding: 16px; margin-top: 12px; display: none; }
+.preview-box.show { display: block; }
+.preview-box h2 { font-size: 16px; color: #8e44ad; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+
+.preview-content { font-size: 14px; line-height: 1.8; white-space: pre-wrap; word-wrap: break-word; }
+.preview-content h3 { font-size: 15px; font-weight: bold; margin: 16px 0 8px; padding: 4px 8px; background: #f5f0ff; border-left: 3px solid #8e44ad; }
+
+.url-box { background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 10px; margin-top: 12px; }
+.url-box label { font-size: 13px; font-weight: bold; color: #8e44ad; margin-bottom: 4px; }
+.url-box input { font-size: 14px; background: #fff; }
+
+.title-preview { background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 14px; font-weight: bold; color: #333; word-wrap: break-word; min-height: 20px; }
+
+.edit-area { width: 100%; min-height: 300px; font-size: 14px; line-height: 1.8; padding: 12px; border: 1px solid #ccc; border-radius: 5px; resize: vertical; display: none; }
+.edit-area.show { display: block; }
+
+.toggle-edit { background: #f39c12; color: #fff; width: 100%; padding: 10px; font-size: 14px; margin-top: 8px; }
+
+.tab-btns { display: flex; gap: 4px; margin-bottom: 8px; }
+.tab-btn { flex: 1; padding: 8px; font-size: 13px; border: 2px solid #8e44ad; border-radius: 5px; background: #fff; color: #8e44ad; cursor: pointer; font-weight: bold; text-align: center; }
+.tab-btn.active { background: #8e44ad; color: #fff; }
+
+.magician-checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.magician-check { display: flex; align-items: center; gap: 4px; padding: 8px 12px; border: 2px solid #ccc; border-radius: 6px; cursor: pointer; font-size: 14px; user-select: none; transition: all .15s; }
+.magician-check input { display: none; }
+.magician-check.checked { border-color: #8e44ad; background: #f5f0ff; color: #8e44ad; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>出張レポートブログ作成ツール</h1>
+  <p class="subtitle">株式会社なんで屋｜イベント情報を入力して記事を作成</p>
+
+  <!-- 基本情報 -->
+  <div class="section">
+    <div class="section-title">基本情報</div>
+    <label>日付</label>
+    <input type="date" id="eventDate">
+    <label>会場名</label>
+    <input type="text" id="venueName" placeholder="例: KKRホテル大阪">
+    <label>地域</label>
+    <input type="text" id="region" placeholder="例: 大阪市">
+    <label>イベント種別</label>
+    <input type="text" id="eventType" placeholder="例: 住宅マンション居住者の懇親会イベント">
+  </div>
+
+  <!-- 来場者情報 -->
+  <div class="section">
+    <div class="section-title">来場者情報</div>
+    <label>来場者数</label>
+    <input type="text" id="audience" placeholder="例: 約50名">
+    <label>年齢層</label>
+    <input type="text" id="ageGroup" placeholder="例: ファミリー層（お子様～大人まで）">
+  </div>
+
+  <!-- 担当マジシャン -->
+  <div class="section">
+    <div class="section-title">担当マジシャン（複数選択可）</div>
+    <div class="magician-checks" id="magicianChecks">
+      <label class="magician-check" onclick="toggleMagician(this)"><input type="checkbox" value="大輝">大輝</label>
+      <label class="magician-check" onclick="toggleMagician(this)"><input type="checkbox" value="パンドラ">パンドラ</label>
+      <label class="magician-check" onclick="toggleMagician(this)"><input type="checkbox" value="まさゆき">まさゆき</label>
+      <label class="magician-check" onclick="toggleMagician(this)"><input type="checkbox" value="滝沢涼">滝沢涼</label>
+      <label class="magician-check" onclick="toggleMagician(this)"><input type="checkbox" value="輝">輝</label>
+      <label class="magician-check" onclick="toggleMagician(this)"><input type="checkbox" value="Junmaki">Junmaki</label>
+      <label class="magician-check" onclick="toggleMagician(this)"><input type="checkbox" value="ちゃっぴー">ちゃっぴー</label>
+    </div>
+  </div>
+
+  <!-- タイムスケジュール -->
+  <div class="section">
+    <div class="section-title">タイムスケジュール</div>
+    <label>入り時間</label>
+    <input type="text" id="arrivalTime" placeholder="例: 13:00">
+    <label>本番時間</label>
+    <input type="text" id="showTime" placeholder="例: 14:00〜14:30">
+    <label>持ち時間</label>
+    <input type="text" id="duration" placeholder="例: 30分">
+  </div>
+
+  <!-- マジックショーの内容 -->
+  <div class="section">
+    <div class="section-title">マジックショーの内容</div>
+    <div id="showContents">
+      <div class="show-row" data-idx="1">
+        <div class="show-num">①</div>
+        <div class="show-input"><input type="text" placeholder="例: シルクからステッキが出現"></div>
+        <div class="show-del"><button class="btn-del" onclick="delShow(this)">×</button></div>
+      </div>
+      <div class="show-row" data-idx="2">
+        <div class="show-num">②</div>
+        <div class="show-input"><input type="text" placeholder="例: カードマジック（お客様参加型）"></div>
+        <div class="show-del"><button class="btn-del" onclick="delShow(this)">×</button></div>
+      </div>
+      <div class="show-row" data-idx="3">
+        <div class="show-num">③</div>
+        <div class="show-input"><input type="text" placeholder="例: 新聞紙からジュースが出現"></div>
+        <div class="show-del"><button class="btn-del" onclick="delShow(this)">×</button></div>
+      </div>
+    </div>
+    <button class="btn btn-add" onclick="addShow()">＋ 演目を追加</button>
+  </div>
+
+  <!-- 演出のポイント -->
+  <div class="section">
+    <div class="section-title">演出のポイント</div>
+    <textarea id="highlights" rows="4" placeholder="例: 今回はファミリー層のお客様が多かったため、お子様にも楽しんでいただけるよう参加型のマジックを多めに構成しました。"></textarea>
+  </div>
+
+  <!-- お問い合わせにつなげる文章 -->
+  <div class="section">
+    <div class="section-title">お問い合わせにつなげる文章</div>
+    <textarea id="cta" rows="4" placeholder="例: 懇親会やパーティーでのマジックショーをお探しの方は、ぜひお気軽にお問い合わせください！"></textarea>
+  </div>
+
+  <!-- 記事作成ボタン -->
+  <div class="section">
+    <button class="btn btn-generate" onclick="generateArticle()">記事を作成する</button>
+  </div>
+
+  <!-- タイトルプレビュー -->
+  <div id="titleSection" class="section" style="display:none;">
+    <div class="section-title">記事タイトル</div>
+    <div class="title-preview" id="titlePreview"></div>
+    <button class="btn btn-copy" onclick="copyTitle()" style="margin-top:8px;">タイトルをコピー</button>
+  </div>
+
+  <!-- URL案 -->
+  <div id="urlSection" class="url-box" style="display:none;">
+    <label>URL案（英語スラッグ）</label>
+    <input type="text" id="urlSlug" readonly>
+    <button class="btn btn-copy" onclick="copyUrl()" style="width:100%;margin-top:4px;">URLをコピー</button>
+  </div>
+
+  <!-- プレビュー／編集 -->
+  <div id="previewSection" class="preview-box">
+    <h2>記事プレビュー</h2>
+    <div class="tab-btns">
+      <button class="tab-btn active" onclick="switchTab('preview')">プレビュー</button>
+      <button class="tab-btn" onclick="switchTab('edit')">編集</button>
+    </div>
+    <div class="preview-content" id="previewContent"></div>
+    <textarea class="edit-area" id="editArea" oninput="updateFromEdit()"></textarea>
+    <button class="btn btn-copy" id="btnCopyBody" onclick="copyBody()">本文をコピー</button>
+  </div>
+</div>
+
+<script>
+var showRowId = 3;
+
+function toggleMagician(label) {
+  setTimeout(function() {
+    var cb = label.querySelector('input');
+    label.classList.toggle('checked', cb.checked);
+  }, 0);
+}
+
+function getSelectedMagicians() {
+  var checks = document.querySelectorAll('#magicianChecks input:checked');
+  var names = [];
+  for (var i = 0; i < checks.length; i++) names.push(checks[i].value);
+  return names;
+}
+
+function addShow() {
+  showRowId++;
+  var nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+  var container = document.getElementById('showContents');
+  var count = container.children.length;
+  var div = document.createElement('div');
+  div.className = 'show-row';
+  div.innerHTML =
+    '<div class="show-num">' + (nums[count] || (count+1)) + '</div>' +
+    '<div class="show-input"><input type="text" placeholder="演目を入力"></div>' +
+    '<div class="show-del"><button class="btn-del" onclick="delShow(this)">×</button></div>';
+  container.appendChild(div);
+  renumberShows();
+}
+
+function delShow(btn) {
+  var row = btn.closest('.show-row');
+  var container = document.getElementById('showContents');
+  if (container.children.length <= 1) return;
+  row.remove();
+  renumberShows();
+}
+
+function renumberShows() {
+  var nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+  var rows = document.querySelectorAll('#showContents .show-row');
+  for (var i = 0; i < rows.length; i++) {
+    rows[i].querySelector('.show-num').textContent = nums[i] || (i+1);
+  }
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  var parts = dateStr.split('-');
+  return parseInt(parts[0]) + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+}
+
+function generateSlug() {
+  var region = document.getElementById('region').value.trim();
+  var eventType = document.getElementById('eventType').value.trim();
+
+  var regionMap = {
+    '東京': 'tokyo', '東京都': 'tokyo', '千代田区': 'tokyo-chiyoda', '港区': 'tokyo-minato',
+    '新宿区': 'tokyo-shinjuku', '渋谷区': 'tokyo-shibuya',
+    '大阪': 'osaka', '大阪市': 'osaka', '大阪府': 'osaka',
+    '神戸': 'kobe', '神戸市': 'kobe', '神戸市中央区': 'kobe-chuo', '神戸市長田区': 'kobe-nagata',
+    '神戸市北区': 'kobe-kita',
+    '京都': 'kyoto', '京都市': 'kyoto', '名古屋': 'nagoya', '名古屋市': 'nagoya',
+    '横浜': 'yokohama', '横浜市': 'yokohama',
+    '福岡': 'fukuoka', '福岡市': 'fukuoka',
+    '札幌': 'sapporo', '札幌市': 'sapporo', '仙台': 'sendai', '仙台市': 'sendai',
+    '広島': 'hiroshima', '広島市': 'hiroshima', '奈良': 'nara', '奈良市': 'nara',
+    '姫路': 'himeji', '姫路市': 'himeji', '尼崎': 'amagasaki', '尼崎市': 'amagasaki',
+    '川西': 'kawanishi', '川西市': 'kawanishi', '伊丹': 'itami', '伊丹市': 'itami',
+    '有馬': 'arima', '有馬温泉': 'arima', '西宮': 'nishinomiya', '西宮市': 'nishinomiya'
+  };
+
+  var eventTypeMap = {
+    '懇親会': 'social-gathering', '忘年会': 'year-end-party', '新年会': 'new-year-party',
+    '歓迎会': 'welcome-party', '送別会': 'farewell-party',
+    '企業パーティ': 'corporate-party', '企業パーティー': 'corporate-party',
+    '結婚式': 'wedding', '披露宴': 'wedding-reception',
+    '誕生日会': 'birthday-party', 'お誕生日会': 'birthday-party',
+    '周年イベント': 'anniversary-party', '創立記念': 'anniversary-party',
+    '展示会': 'showroom-event', 'ショールーム': 'showroom-event',
+    'お花見': 'event-magic', '祭り': 'festival-magic', 'さくら祭': 'sakura-festival-magic',
+    '卒業イベント': 'graduation-salon-magic',
+    'ショッピングモール': 'shopping-mall-magic-show',
+    '相席パーティ': 'party-table-magic'
+  };
+
+  var regionEn = regionMap[region] || 'event';
+
+  var showType = 'magic-show';
+  for (var key in eventTypeMap) {
+    if (eventType.indexOf(key) !== -1) {
+      showType = eventTypeMap[key];
+      break;
+    }
+  }
+
+  return regionEn + '-' + showType;
+}
+
+function getShowContents() {
+  var rows = document.querySelectorAll('#showContents .show-row');
+  var items = [];
+  var nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+  for (var i = 0; i < rows.length; i++) {
+    var val = rows[i].querySelector('input').value.trim();
+    if (val) items.push({ num: nums[i] || (i+1), text: val });
+  }
+  return items;
+}
+
+function generateArticle() {
+  var date = formatDate(document.getElementById('eventDate').value);
+  var venue = document.getElementById('venueName').value.trim();
+  var region = document.getElementById('region').value.trim();
+  var eventType = document.getElementById('eventType').value.trim();
+  var audience = document.getElementById('audience').value.trim();
+  var ageGroup = document.getElementById('ageGroup').value.trim();
+  var magicians = getSelectedMagicians();
+  var arrivalTime = document.getElementById('arrivalTime').value.trim();
+  var showTime = document.getElementById('showTime').value.trim();
+  var duration = document.getElementById('duration').value.trim();
+  var highlights = document.getElementById('highlights').value.trim();
+  var cta = document.getElementById('cta').value.trim();
+  var shows = getShowContents();
+
+  if (!venue || !region || magicians.length === 0) {
+    alert('会場名、地域、担当マジシャン（1名以上）は必須です。');
+    return;
+  }
+
+  var magicianTitle = magicians.join('・');
+  var magicianFirst = magicians[0];
+
+  // タイトル
+  var title = '【' + region + '】' + venue + 'で' + eventType + 'のマジックショーを行いました～' + magicianTitle + '～';
+  document.getElementById('titlePreview').textContent = title;
+  document.getElementById('titleSection').style.display = '';
+
+  // URL
+  document.getElementById('urlSlug').value = generateSlug();
+  document.getElementById('urlSection').style.display = '';
+
+  // 本文作成
+  var body = '';
+  body += 'こんにちは。株式会社なんで屋の' + magicianFirst + 'です！\n\n';
+  body += '今回は、' + region + 'にある' + venue + 'にて' + eventType + 'のマジックショーを行いました。\n';
+  if (audience) body += audience + 'のお客様にご覧いただきました。';
+  body += '\n同じようなイベントを検討中の方の参考になれば嬉しいです＾＾\n';
+
+  body += '\n<h2>イベント概要</h2>\n';
+  if (date) body += '日付：' + date + '\n';
+  body += '会場：' + venue + '\n';
+  body += '地域：' + region + '\n';
+  body += 'イベント種別：' + eventType + '\n';
+  if (audience) body += '来場者数：' + audience + '\n';
+  if (ageGroup) body += '年齢層：' + ageGroup + '\n';
+
+  body += '\n<h2>タイムスケジュール</h2>\n';
+  if (arrivalTime) body += '入り時間：' + arrivalTime + '\n';
+  if (showTime) body += '本番時間：' + showTime + '\n';
+  if (duration) body += '持ち時間：' + duration + '\n';
+
+  body += '\n<h2>担当マジシャン</h2>\n';
+  for (var m = 0; m < magicians.length; m++) {
+    body += magicians[m] + '\n';
+  }
+
+  body += '\n<h2>マジックショーの内容</h2>\n';
+  for (var i = 0; i < shows.length; i++) {
+    body += shows[i].num + ' ' + shows[i].text + '\n';
+  }
+
+  body += '\n<h2>演出のポイント</h2>\n';
+  if (highlights) body += highlights + '\n';
+
+  body += '\n<h2>同じようなイベントをご検討中の方へ</h2>\n';
+  if (cta) {
+    body += cta + '\n';
+  } else {
+    body += defaultCta + '\n';
+  }
+
+  // プレビュー表示
+  var previewEl = document.getElementById('previewSection');
+  previewEl.classList.add('show');
+
+  document.getElementById('editArea').value = body;
+  renderPreview(body);
+
+  previewEl.scrollIntoView({ behavior: 'smooth' });
+}
+
+var defaultCta = 'マジックショーの出張公演についてのご相談は、お気軽にお問い合わせください！';
+
+function renderPreview(text) {
+  var html = escapeHtml(text);
+  html = html.replace(/&lt;h2&gt;(.+?)&lt;\/h2&gt;/g, '<h3>$1</h3>');
+  document.getElementById('previewContent').innerHTML = html;
+}
+
+function escapeHtml(str) {
+  var d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function switchTab(tab) {
+  var btns = document.querySelectorAll('.tab-btn');
+  var preview = document.getElementById('previewContent');
+  var edit = document.getElementById('editArea');
+
+  if (tab === 'preview') {
+    btns[0].classList.add('active');
+    btns[1].classList.remove('active');
+    preview.style.display = '';
+    edit.classList.remove('show');
+    renderPreview(edit.value);
+  } else {
+    btns[1].classList.add('active');
+    btns[0].classList.remove('active');
+    preview.style.display = 'none';
+    edit.classList.add('show');
+  }
+}
+
+function updateFromEdit() {
+  // プレビューに戻った時に反映される
+}
+
+function copyTitle() {
+  var text = document.getElementById('titlePreview').textContent;
+  copyToClipboard(text, event.target);
+}
+
+function copyUrl() {
+  var text = document.getElementById('urlSlug').value;
+  copyToClipboard(text, event.target);
+}
+
+function copyBody() {
+  var text = document.getElementById('editArea').value;
+  copyToClipboard(text, document.getElementById('btnCopyBody'));
+}
+
+function copyToClipboard(text, btn) {
+  navigator.clipboard.writeText(text).then(function() {
+    var orig = btn.textContent;
+    btn.textContent = 'コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = orig;
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+</script>
+</body>
+</html>

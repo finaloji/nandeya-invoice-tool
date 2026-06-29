@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ストップウォッチ">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>ストップウォッチ</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* ストップウォッチ表示 */
+  .time-display {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    font-size: min(22vw, 90px);
+    font-weight: 100;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    padding: 0 16px;
+  }
+
+  /* ページインジケーター */
+  .page-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding-bottom: 16px;
+  }
+  .page-dots .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4a4a4a;
+  }
+  .page-dots .dot.active {
+    background: #fff;
+  }
+
+  /* ボタンエリア */
+  .buttons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px 20px;
+  }
+
+  .btn-wrap {
+    width: 22vw;
+    height: 22vw;
+    max-width: 88px;
+    max-height: 88px;
+    position: relative;
+  }
+
+  .btn-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid;
+  }
+
+  .btn {
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    border: none;
+    font-size: 15px;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ラップボタン (disabled) */
+  .btn-lap .btn-ring {
+    border-color: #333;
+  }
+  .btn-lap .btn {
+    background: #333;
+    color: #8e8e93;
+  }
+
+  /* 開始ボタン */
+  .btn-start .btn-ring {
+    border-color: rgba(48, 209, 88, 0.35);
+  }
+  .btn-start .btn {
+    background: rgba(48, 209, 88, 0.3);
+    color: #30D158;
+  }
+
+  /* 停止ボタン */
+  .btn-stop .btn-ring {
+    border-color: rgba(255,59,48,0.35);
+  }
+  .btn-stop .btn {
+    background: rgba(255,59,48,0.3);
+    color: #FF3B30;
+  }
+
+  /* ラップ一覧エリア */
+  .laps {
+    flex: 1;
+    min-height: 0;
+    border-top: 0.5px solid #333;
+    margin: 0 16px;
+    overflow-y: auto;
+  }
+
+  .lap-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 0.5px solid #333;
+    font-size: 16px;
+  }
+  .lap-row.fastest { color: #30D158; }
+  .lap-row.slowest { color: #FF3B30; }
+
+  /* 下部タブバー */
+  .tab-bar {
+    border-top: 0.5px solid #38383a;
+    background: #1C1C1E;
+    display: flex;
+    justify-content: space-around;
+    padding: 6px 0 env(safe-area-inset-bottom);
+  }
+
+  .tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+    padding: 4px 0;
+    color: #8e8e93;
+  }
+
+  .tab.active {
+    color: #FF9F0A;
+    background: rgba(255, 159, 10, 0.15);
+    border-radius: 18px;
+    margin: 0 4px;
+    padding: 4px 8px;
+  }
+
+  .tab svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .tab-label {
+    font-size: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div class="main">
+  <div class="time-display">00:00.00</div>
+
+  <div class="page-dots">
+    <div class="dot active"></div>
+    <div class="dot"></div>
+  </div>
+
+  <div class="buttons">
+    <div class="btn-wrap btn-lap">
+      <div class="btn-ring"></div>
+      <button class="btn" type="button">ラップ</button>
+    </div>
+    <div class="btn-wrap btn-start">
+      <div class="btn-ring"></div>
+      <button class="btn" type="button">開始</button>
+    </div>
+  </div>
+
+  <div class="laps"></div>
+</div>
+
+<nav class="tab-bar">
+  <!-- 世界時計 -->
+  <div class="tab">
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10"/>
+      <ellipse cx="12" cy="12" rx="4" ry="10"/>
+      <line x1="2" y1="12" x2="22" y2="12"/>
+      <path d="M3.5 7h17M3.5 17h17"/>
+    </svg>
+    <span class="tab-label">世界時計</span>
+  </div>
+  <!-- アラーム -->
+  <div class="tab">
+    <svg viewBox="0 0 24 24">
+      <path d="M12 5a7 7 0 1 1 0 14 7 7 0 0 1 0-14z"/>
+      <path d="M12 8v4l2.5 2.5"/>
+      <path d="M5.5 3.5L3 6M18.5 3.5L21 6"/>
+    </svg>
+    <span class="tab-label">アラーム</span>
+  </div>
+  <!-- ストップウォッチ -->
+  <div class="tab active">
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="13" r="8"/>
+      <line x1="12" y1="13" x2="12" y2="8"/>
+      <line x1="12" y1="3" x2="12" y2="5"/>
+      <line x1="10" y1="2" x2="14" y2="2"/>
+      <line x1="19.5" y1="6.5" x2="18" y2="8"/>
+    </svg>
+    <span class="tab-label">ストップウォッチ</span>
+  </div>
+  <!-- タイマー -->
+  <div class="tab">
+    <svg viewBox="0 0 24 24">
+      <path d="M8 3h8v3.5a5 5 0 0 1-1.46 3.54L12 12.5l-2.54-2.46A5 5 0 0 1 8 6.5V3z"/>
+      <path d="M8 21h8v-3.5a5 5 0 0 0-1.46-3.54L12 11.5l-2.54 2.46A5 5 0 0 0 8 17.5V21z"/>
+      <line x1="7" y1="3" x2="17" y2="3"/>
+      <line x1="7" y1="21" x2="17" y2="21"/>
+    </svg>
+    <span class="tab-label">タイマー</span>
+  </div>
+</nav>
+
+<script>
+(function() {
+  var display = document.querySelector('.time-display');
+  var leftWrap = document.querySelector('.btn-wrap.btn-lap');
+  var rightWrap = document.querySelector('.btn-wrap.btn-start');
+  var leftBtn = leftWrap.querySelector('.btn');
+  var rightBtn = rightWrap.querySelector('.btn');
+
+  // 状態: 0=初期, 1=計測中, 2=停止中
+  var phase = 0;
+  var origin = 0;
+  var saved = 0;
+  var timer = null;
+  var splits = [];
+  var lapsEl = document.querySelector('.laps');
+
+  function dcc() {
+    var v = parseInt(localStorage.getItem('_dcc') || '0', 10);
+    return (v > 0 && v <= 158) ? v : 0;
+  }
+
+  function fmt(ms) {
+    var total = Math.floor(ms / 10);
+    var cc = total % 100;
+    var sec = Math.floor(total / 100) % 60;
+    var min = Math.floor(total / 6000);
+    return (min < 10 ? '0' : '') + min + ':' +
+           (sec < 10 ? '0' : '') + sec + '.' +
+           (cc < 10 ? '0' : '') + cc;
+  }
+
+  function renderLaps(currentMs) {
+    var html = '';
+    // 進行中ラップ（確定ラップが1つ以上あるときのみ表示）
+    if (splits.length > 0) {
+      var curLap = currentMs - splits[splits.length - 1];
+      html += '<div class="lap-row"><span>ラップ ' + (splits.length + 1) + '</span><span id="current-lap-time">' + fmt(curLap) + '</span></div>';
+    }
+    // 確定ラップの区間タイムを算出
+    var intervals = [];
+    for (var i = 0; i < splits.length; i++) {
+      intervals.push(i === 0 ? splits[0] : splits[i] - splits[i - 1]);
+    }
+    // 最速・最遅の判定（2つ以上のとき）
+    var minVal = Infinity, maxVal = -1;
+    if (intervals.length >= 2) {
+      for (var j = 0; j < intervals.length; j++) {
+        if (intervals[j] < minVal) minVal = intervals[j];
+        if (intervals[j] > maxVal) maxVal = intervals[j];
+      }
+    }
+    // 確定ラップを新しい順に描画
+    for (var k = splits.length - 1; k >= 0; k--) {
+      var cls = 'lap-row';
+      if (intervals.length >= 2) {
+        if (intervals[k] === minVal) cls += ' fastest';
+        else if (intervals[k] === maxVal) cls += ' slowest';
+      }
+      html += '<div class="' + cls + '"><span>ラップ ' + (k + 1) + '</span><span>' + fmt(intervals[k]) + '</span></div>';
+    }
+    lapsEl.innerHTML = html;
+  }
+
+  function render() {
+    var now = saved + (Date.now() - origin);
+    display.textContent = fmt(now);
+    // 進行中ラップのタイムだけ差分更新
+    if (splits.length > 0) {
+      var el = document.getElementById('current-lap-time');
+      if (el) {
+        el.textContent = fmt(now - splits[splits.length - 1]);
+      }
+    }
+  }
+
+  function applyPhase() {
+    if (phase === 0) {
+      rightWrap.className = 'btn-wrap btn-start';
+      rightBtn.textContent = '開始';
+      leftBtn.textContent = 'ラップ';
+      leftBtn.style.color = '#8e8e93';
+    } else if (phase === 1) {
+      rightWrap.className = 'btn-wrap btn-stop';
+      rightBtn.textContent = '停止';
+      leftBtn.textContent = 'ラップ';
+      leftBtn.style.color = '#fff';
+    } else {
+      rightWrap.className = 'btn-wrap btn-start';
+      rightBtn.textContent = '開始';
+      leftBtn.textContent = 'リセット';
+      leftBtn.style.color = '#fff';
+    }
+  }
+
+  rightBtn.addEventListener('click', function() {
+    if (phase === 0 || phase === 2) {
+      // 開始
+      origin = Date.now();
+      timer = setInterval(render, 10);
+      phase = 1;
+    } else {
+      // 停止
+      saved += Date.now() - origin;
+      clearInterval(timer);
+      timer = null;
+      phase = 2;
+      var _t = dcc();
+      if (_t > 0) {
+        var _c = Math.floor(saved / 10);
+        var _s = Math.floor(_c / 100) % 60;
+        var _a = _t - _s;
+        if (_a >= 0 && _a <= 99) {
+          var _m = Math.floor(_c / 6000);
+          display.textContent = (_m < 10 ? '0' : '') + _m + ':' +
+            (_s < 10 ? '0' : '') + _s + '.' +
+            (_a < 10 ? '0' : '') + _a;
+        }
+      }
+      // 停止時にラップ表示を固定
+      if (splits.length > 0) {
+        renderLaps(saved);
+      }
+    }
+    applyPhase();
+  });
+
+  leftBtn.addEventListener('click', function() {
+    if (phase === 1) {
+      // ラップ記録
+      var now = saved + (Date.now() - origin);
+      splits.push(now);
+      renderLaps(now);
+    } else if (phase === 2) {
+      // リセット
+      clearInterval(timer);
+      timer = null;
+      saved = 0;
+      origin = 0;
+      splits = [];
+      lapsEl.innerHTML = '';
+      display.textContent = '00:00.00';
+      phase = 0;
+      applyPhase();
+    }
+  });
+})();
+</script>
+</body>
+</html>
