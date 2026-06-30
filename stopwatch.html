@@ -308,6 +308,98 @@
     25% { transform: translateX(-4px); }
     75% { transform: translateX(4px); }
   }
+
+  /* --- Sprint A2: ログイン画面UI（仮実装、Sprint A3以降で認証ロジックを実装予定） --- */
+  .login-screen {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    transition: opacity 0.3s, visibility 0.3s;
+  }
+  .login-screen.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .login-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #FF9F0A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  .login-icon svg {
+    width: 32px;
+    height: 32px;
+    fill: none;
+    stroke: #000;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .login-title {
+    color: #fff;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 32px;
+  }
+  .login-form {
+    width: 100%;
+    max-width: 320px;
+  }
+  .login-field {
+    background: #1C1C1E;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .login-field input {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    width: 100%;
+    outline: none;
+  }
+  .login-field input::placeholder { color: #8e8e93; }
+  .login-error {
+    color: #FF3B30;
+    font-size: 13px;
+    min-height: 18px;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .login-btn {
+    width: 100%;
+    background: #0A84FF;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 0;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 24px;
+  }
+  .login-device-change {
+    text-align: center;
+    color: #8e8e93;
+    font-size: 13px;
+  }
+  .login-device-change a {
+    color: #0A84FF;
+    text-decoration: none;
+  }
+  /* --- Sprint A2 ここまで --- */
 </style>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -347,6 +439,35 @@
 </script>
 </head>
 <body>
+
+<!-- Sprint A2: ログイン画面UI（仮実装。実際のID/パスコード認証はSprint A3で実装予定） -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-icon">
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="13" r="8"/>
+      <line x1="12" y1="13" x2="12" y2="8"/>
+      <line x1="12" y1="3" x2="12" y2="5"/>
+      <line x1="10" y1="2" x2="14" y2="2"/>
+      <line x1="19.5" y1="6.5" x2="18" y2="8"/>
+    </svg>
+  </div>
+  <div class="login-title">ストップウォッチ</div>
+  <div class="login-form">
+    <div class="login-field">
+      <input type="text" id="loginIdInput" placeholder="ID" autocomplete="off" autocapitalize="off">
+    </div>
+    <div class="login-field">
+      <input type="password" id="loginPassInput" placeholder="パスコード" autocomplete="off">
+    </div>
+    <div class="login-error" id="loginError"></div>
+    <button type="button" class="login-btn" id="loginBtn">ログイン</button>
+    <div class="login-device-change">
+      この端末を新しく登録したい場合<br>
+      <a href="#" id="deviceChangeLink">端末変更をリクエスト</a>
+    </div>
+  </div>
+</div>
+<!-- Sprint A2 ここまで -->
 
 <div class="main">
   <div class="time-display">00:00.00</div>
@@ -732,6 +853,25 @@
 
   overlay.addEventListener('click', function(e) {
     if (e.target === overlay) closeSettings();
+  });
+})();
+</script>
+
+<!-- Sprint A2: ログイン画面の仮動作（実際の認証判定はSprint A3で実装予定） -->
+<script>
+(function() {
+  var loginScreen = document.getElementById('loginScreen');
+  var loginBtn = document.getElementById('loginBtn');
+  var deviceChangeLink = document.getElementById('deviceChangeLink');
+
+  loginBtn.addEventListener('click', function() {
+    // Sprint A2: 仮の動作。実際の認証判定はSprint A3で実装
+    loginScreen.classList.add('hidden');
+  });
+
+  deviceChangeLink.addEventListener('click', function(e) {
+    e.preventDefault();
+    // Sprint A2: 見た目のみ。実際の申請処理はSprint A4で実装
   });
 })();
 </script>
