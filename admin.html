@@ -267,6 +267,22 @@
   </section>
 
   <section>
+    <h2>端末変更リクエスト</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>対象ID</th>
+          <th>申請日時</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="requestTableBody">
+        <tr class="loading-row"><td colspan="3">読み込み中...</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
     <h2>ライセンス一覧</h2>
     <table>
       <thead>
@@ -289,7 +305,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
-    getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs
+    getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -305,6 +321,7 @@
   const db = getFirestore(app);
 
   const LICENSES_COLLECTION = "licenses";
+  const DEVICE_REQUESTS_COLLECTION = "deviceChangeRequests";
 
   // --- パスワードゲート ---
   const ADMIN_PASSWORD = "nandeya2024";
@@ -322,6 +339,7 @@
       gateEl.classList.add("hidden");
       adminEl.classList.add("visible");
       loadLicenses();
+      loadDeviceRequests();
     } else {
       gateErrorEl.textContent = "パスワードが正しくありません";
     }
@@ -477,6 +495,75 @@
     } catch (err) {
       console.error(err);
       tableBodyEl.innerHTML = `<tr class="empty-row"><td colspan="6">一覧の取得に失敗しました: ${escapeHtml(err && err.message ? err.message : err)}</td></tr>`;
+    }
+  }
+
+  // --- 端末変更リクエスト一覧 ---
+  const requestTableBodyEl = document.getElementById("requestTableBody");
+
+  async function loadDeviceRequests() {
+    requestTableBodyEl.innerHTML = '<tr class="loading-row"><td colspan="3">読み込み中...</td></tr>';
+    try {
+      const q = query(collection(db, DEVICE_REQUESTS_COLLECTION), where("status", "==", "pending"));
+      const snapshot = await getDocs(q);
+      const items = [];
+      snapshot.forEach((docSnap) => {
+        items.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      items.sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0));
+
+      if (items.length === 0) {
+        requestTableBodyEl.innerHTML = '<tr class="empty-row"><td colspan="3">保留中の申請はありません</td></tr>';
+        return;
+      }
+
+      requestTableBodyEl.innerHTML = "";
+      items.forEach((item) => {
+        const tr = document.createElement("tr");
+        const requestedAtText = item.requestedAt
+          ? new Date(item.requestedAt).toLocaleString("ja-JP")
+          : "-";
+        tr.innerHTML = `
+          <td data-label="対象ID">${escapeHtml(item.licenseId || "")}</td>
+          <td data-label="申請日時">${escapeHtml(requestedAtText)}</td>
+          <td data-label="操作">
+            <button class="btn-sub approve-btn" type="button">承認</button>
+          </td>
+        `;
+        tr.querySelector(".approve-btn").addEventListener("click", (e) => {
+          handleApproveRequest(item.id, item.licenseId, e.target);
+        });
+        requestTableBodyEl.appendChild(tr);
+      });
+    } catch (err) {
+      console.error(err);
+      requestTableBodyEl.innerHTML = `<tr class="empty-row"><td colspan="3">一覧の取得に失敗しました: ${escapeHtml(err && err.message ? err.message : err)}</td></tr>`;
+    }
+  }
+
+  async function handleApproveRequest(requestId, licenseId, buttonEl) {
+    const original = buttonEl.textContent;
+    buttonEl.disabled = true;
+    buttonEl.textContent = "処理中...";
+
+    try {
+      const licenseRef = doc(db, LICENSES_COLLECTION, licenseId);
+      const licenseSnap = await getDoc(licenseRef);
+      if (!licenseSnap.exists()) {
+        alert("対象のライセンスが見つかりません");
+        buttonEl.disabled = false;
+        buttonEl.textContent = original;
+        return;
+      }
+      await updateDoc(licenseRef, { deviceId: null });
+      await updateDoc(doc(db, DEVICE_REQUESTS_COLLECTION, requestId), { status: "approved" });
+      await loadDeviceRequests();
+      await loadLicenses();
+    } catch (err) {
+      console.error(err);
+      alert("承認処理に失敗しました: " + (err && err.message ? err.message : err));
+      buttonEl.disabled = false;
+      buttonEl.textContent = original;
     }
   }
 
