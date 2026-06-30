@@ -405,7 +405,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBSSGdNDndjiUj40m4V4QA6Kjqr-oRnBc8",
@@ -419,23 +419,10 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // --- Sprint A1: 接続テスト用コード（後続スプリントで本実装に置き換え予定） ---
-  (async function testFirestoreConnection() {
-    try {
-      const testValue = 'ok-' + Date.now();
-      const testRef = doc(db, '_connectionTest', 'ping');
-      await setDoc(testRef, { value: testValue, ts: Date.now() });
-      const snap = await getDoc(testRef);
-      if (snap.exists() && snap.data().value === testValue) {
-        console.log('[Firestore接続テスト] 成功: 書き込み・読み込みが一致しました', snap.data());
-      } else {
-        console.error('[Firestore接続テスト] 失敗: 書き込んだ値と読み込んだ値が一致しません', snap.data());
-      }
-    } catch (err) {
-      console.error('[Firestore接続テスト] エラー:', err);
-    }
-  })();
-  // --- Sprint A1 接続テスト用コードここまで ---
+  // --- Sprint A3: 非moduleのbody側scriptからFirestoreインスタンス・関数を使えるようグローバルに公開 ---
+  window.__db = db;
+  window.__fsFns = { doc, getDoc, setDoc, updateDoc };
+  window.dispatchEvent(new Event('_fsready'));
 </script>
 </head>
 <body>
@@ -857,22 +844,121 @@
 })();
 </script>
 
-<!-- Sprint A2: ログイン画面の仮動作（実際の認証判定はSprint A3で実装予定） -->
+<!-- Sprint A3: ログイン画面のID・パスコード認証＋端末ロックロジック -->
 <script>
 (function() {
   var loginScreen = document.getElementById('loginScreen');
   var loginBtn = document.getElementById('loginBtn');
+  var loginIdInput = document.getElementById('loginIdInput');
+  var loginPassInput = document.getElementById('loginPassInput');
+  var loginError = document.getElementById('loginError');
   var deviceChangeLink = document.getElementById('deviceChangeLink');
 
-  loginBtn.addEventListener('click', function() {
-    // Sprint A2: 仮の動作。実際の認証判定はSprint A3で実装
-    loginScreen.classList.add('hidden');
+  function getDeviceId() {
+    var id = localStorage.getItem('_devid');
+    if (!id) {
+      id = 'd-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem('_devid', id);
+    }
+    return id;
+  }
+
+  function showError(msg) {
+    loginError.textContent = msg;
+  }
+
+  function setLoading(isLoading) {
+    loginBtn.disabled = isLoading;
+    loginBtn.textContent = isLoading ? '確認中...' : 'ログイン';
+  }
+
+  async function attemptLogin(licenseId, passcode) {
+    var db = window.__db;
+    var fns = window.__fsFns;
+    var ref = fns.doc(db, 'licenses', licenseId);
+    var snap = await fns.getDoc(ref);
+    if (!snap.exists()) {
+      return { ok: false, reason: 'invalid' };
+    }
+    var data = snap.data();
+    if (data.passcode !== passcode) {
+      return { ok: false, reason: 'invalid' };
+    }
+    var myDevice = getDeviceId();
+    if (!data.deviceId) {
+      await fns.updateDoc(ref, { deviceId: myDevice });
+      return { ok: true };
+    }
+    if (data.deviceId === myDevice) {
+      return { ok: true };
+    }
+    return { ok: false, reason: 'device' };
+  }
+
+  async function tryAutoLogin() {
+    var savedId = localStorage.getItem('_licid');
+    if (!savedId) return false;
+    try {
+      var db = window.__db;
+      var fns = window.__fsFns;
+      var ref = fns.doc(db, 'licenses', savedId);
+      var snap = await fns.getDoc(ref);
+      if (!snap.exists()) {
+        localStorage.removeItem('_licid');
+        return false;
+      }
+      var data = snap.data();
+      var myDevice = getDeviceId();
+      if (data.deviceId === myDevice) {
+        loginScreen.classList.add('hidden');
+        return true;
+      }
+      localStorage.removeItem('_licid');
+      return false;
+    } catch (err) {
+      console.error('[自動ログイン確認] エラー:', err);
+      return false;
+    }
+  }
+
+  loginBtn.addEventListener('click', async function() {
+    var id = loginIdInput.value.trim();
+    var pass = loginPassInput.value;
+    showError('');
+    if (!id || !pass) {
+      showError('IDまたはパスコードが正しくありません');
+      return;
+    }
+    setLoading(true);
+    try {
+      var result = await attemptLogin(id, pass);
+      if (result.ok) {
+        localStorage.setItem('_licid', id);
+        loginScreen.classList.add('hidden');
+      } else if (result.reason === 'device') {
+        showError('他の端末で使用中です');
+      } else {
+        showError('IDまたはパスコードが正しくありません');
+      }
+    } catch (err) {
+      console.error('[ログイン処理] エラー:', err);
+      showError('通信エラーが発生しました。もう一度お試しください');
+    } finally {
+      setLoading(false);
+    }
   });
 
   deviceChangeLink.addEventListener('click', function(e) {
     e.preventDefault();
-    // Sprint A2: 見た目のみ。実際の申請処理はSprint A4で実装
+    // Sprint A4で実装予定
   });
+
+  // ページ読み込み時に自動ログイン判定（Firestore初期化完了を待つ）
+  if (window.__db) {
+    tryAutoLogin();
+  } else {
+    window.addEventListener('_fsready', tryAutoLogin, { once: true });
+  }
 })();
 </script>
 </body>
