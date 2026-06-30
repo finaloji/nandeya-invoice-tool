@@ -311,6 +311,40 @@
 </style>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBSSGdNDndjiUj40m4V4QA6Kjqr-oRnBc8",
+    authDomain: "nandeya-magic-app.firebaseapp.com",
+    projectId: "nandeya-magic-app",
+    storageBucket: "nandeya-magic-app.firebasestorage.app",
+    messagingSenderId: "181170873357",
+    appId: "1:181170873357:web:b3c3fef8aea6390f37a144"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // --- Sprint A1: 接続テスト用コード（後続スプリントで本実装に置き換え予定） ---
+  (async function testFirestoreConnection() {
+    try {
+      const testValue = 'ok-' + Date.now();
+      const testRef = doc(db, '_connectionTest', 'ping');
+      await setDoc(testRef, { value: testValue, ts: Date.now() });
+      const snap = await getDoc(testRef);
+      if (snap.exists() && snap.data().value === testValue) {
+        console.log('[Firestore接続テスト] 成功: 書き込み・読み込みが一致しました', snap.data());
+      } else {
+        console.error('[Firestore接続テスト] 失敗: 書き込んだ値と読み込んだ値が一致しません', snap.data());
+      }
+    } catch (err) {
+      console.error('[Firestore接続テスト] エラー:', err);
+    }
+  })();
+  // --- Sprint A1 接続テスト用コードここまで ---
+</script>
 </head>
 <body>
 
