@@ -603,9 +603,10 @@
         <span class="modal-label">ラップ補正</span>
         <div id="lapChips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;"></div>
         <div style="display:flex;gap:8px;align-items:center;">
-          <input type="text" inputmode="numeric" pattern="[0-9]*" id="lapForceInput" class="modal-input" placeholder="0〜99を入力→Enter" maxlength="2" style="width:100%;text-align:left;">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="lapForceInput" class="modal-input" placeholder="0〜99を入力" maxlength="2" style="width:100%;text-align:left;">
+          <button type="button" id="lapForceAddBtn" style="background:#3a3a6e;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:14px;flex-shrink:0;cursor:pointer;">追加</button>
         </div>
-        <div style="font-size:11px;color:#636366;">数字を入力してEnterで追加。タップで削除。</div>
+        <div style="font-size:11px;color:#636366;">数字を入力して「追加」。タップで削除。</div>
       </div>
     </div>
   </div>
@@ -982,19 +983,25 @@
     return Array.from(lapChipsEl.querySelectorAll('.lap-chip')).map(function(c) { return c.dataset.val; });
   }
 
-  lapForceInputEl.addEventListener('keydown', function(e) {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
+  function addLapChip() {
     var n = parseInt(lapForceInputEl.value.trim(), 10);
     if (!isNaN(n) && n >= 0 && n <= 99) {
       var current = getChipVals();
       current.push(String(n));
       renderChips(current);
       lapForceInputEl.value = '';
+      lapForceInputEl.focus();
     } else {
       lapForceInputEl.classList.add('error');
       setTimeout(function() { lapForceInputEl.classList.remove('error'); }, 300);
     }
+  }
+
+  document.getElementById('lapForceAddBtn').addEventListener('click', addLapChip);
+  lapForceInputEl.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    addLapChip();
   });
 
   document.getElementById('settingsCancel').addEventListener('click', closeSettings);
