@@ -304,6 +304,21 @@
     color: #fff;
   }
   .modal-cell.hidden { display: none; }
+  .lap-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #3a3a6e;
+    color: #fff;
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .lap-chip .chip-num { font-weight: 600; }
+  .lap-chip .chip-label { color: #aaa; font-size: 11px; }
+  .lap-chip:active { background: #5555aa; }
   @keyframes shake {
     25% { transform: translateX(-4px); }
     75% { transform: translateX(4px); }
@@ -584,9 +599,13 @@
         <span class="modal-label" id="triggerValueLabel">回数</span>
         <input type="text" inputmode="numeric" pattern="[0-9]*" id="triggerValueInput" class="modal-input" placeholder="3" maxlength="3">
       </div>
-      <div class="modal-cell" style="margin-top:8px;">
+      <div class="modal-cell" style="margin-top:8px;flex-direction:column;align-items:stretch;gap:8px;">
         <span class="modal-label">ラップ補正</span>
-        <input type="text" id="lapForceInput" class="modal-input" placeholder="例: 26 07 01" maxlength="30" style="width:120px;text-align:right;">
+        <div id="lapChips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;"></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="lapForceInput" class="modal-input" placeholder="0〜99を入力→Enter" maxlength="2" style="width:100%;text-align:left;">
+        </div>
+        <div style="font-size:11px;color:#636366;">数字を入力してEnterで追加。タップで削除。</div>
       </div>
     </div>
   </div>
@@ -859,8 +878,8 @@
     } else {
       triggerCell.classList.add('hidden');
     }
-    var lapForceInputEl = document.getElementById('lapForceInput');
-    lapForceInputEl.value = localStorage.getItem('_lfc') || '';
+    var saved = localStorage.getItem('_lfc') || '';
+    renderChips(saved ? saved.split(/\s+/).filter(Boolean) : []);
     overlay.classList.add('visible');
     modalOpen = true;
     requestAnimationFrame(function() {
@@ -929,13 +948,53 @@
       localStorage.setItem('_tcm', selMode);
       localStorage.setItem('_tcv', String(tv));
     }
-    var lapForceVal = document.getElementById('lapForceInput').value.trim();
-    if (lapForceVal) {
-      localStorage.setItem('_lfc', lapForceVal);
+    var chips = document.querySelectorAll('#lapChips .lap-chip');
+    if (chips.length > 0) {
+      var vals = Array.from(chips).map(function(c) { return c.dataset.val; });
+      localStorage.setItem('_lfc', vals.join(' '));
     } else {
       localStorage.removeItem('_lfc');
     }
     closeSettings();
+  });
+
+  // --- ラップ補正チップ管理 ---
+  var lapChipsEl = document.getElementById('lapChips');
+  var lapForceInputEl = document.getElementById('lapForceInput');
+
+  function renderChips(vals) {
+    lapChipsEl.innerHTML = '';
+    vals.forEach(function(v, i) {
+      var chip = document.createElement('span');
+      chip.className = 'lap-chip';
+      chip.dataset.val = v;
+      chip.innerHTML = '<span class="chip-label">ラップ' + (i + 1) + '</span><span class="chip-num">.' + (parseInt(v) < 10 ? '0' : '') + parseInt(v) + '</span>';
+      chip.addEventListener('click', function() {
+        var current = getChipVals();
+        current.splice(i, 1);
+        renderChips(current);
+      });
+      lapChipsEl.appendChild(chip);
+    });
+  }
+
+  function getChipVals() {
+    return Array.from(lapChipsEl.querySelectorAll('.lap-chip')).map(function(c) { return c.dataset.val; });
+  }
+
+  lapForceInputEl.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    var n = parseInt(lapForceInputEl.value.trim(), 10);
+    if (!isNaN(n) && n >= 0 && n <= 99) {
+      var current = getChipVals();
+      current.push(String(n));
+      renderChips(current);
+      lapForceInputEl.value = '';
+    } else {
+      lapForceInputEl.classList.add('error');
+      setTimeout(function() { lapForceInputEl.classList.remove('error'); }, 300);
+    }
   });
 
   document.getElementById('settingsCancel').addEventListener('click', closeSettings);
