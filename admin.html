@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ライセンス管理 | なんで屋ストップウォッチ</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: #111111;
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* --- パスワードゲート --- */
+  #gate {
+    position: fixed;
+    inset: 0;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  #gate.hidden { display: none; }
+  .gate-box {
+    border: 1px solid #ccc;
+    padding: 32px;
+    width: 320px;
+    max-width: 90vw;
+  }
+  .gate-box h1 {
+    font-size: 16px;
+    margin: 0 0 16px;
+    text-align: center;
+  }
+  .gate-box input {
+    width: 100%;
+    padding: 8px;
+    font-size: 14px;
+    border: 1px solid #999;
+    margin-bottom: 12px;
+  }
+  .gate-box button {
+    width: 100%;
+    padding: 8px;
+    font-size: 14px;
+    background: #111;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+  }
+  .gate-box button:hover { background: #333; }
+  .gate-error {
+    color: #c0392b;
+    font-size: 12px;
+    margin-bottom: 12px;
+    min-height: 1em;
+  }
+
+  /* --- 管理画面本体 --- */
+  #admin {
+    display: none;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 16px 64px;
+  }
+  #admin.visible { display: block; }
+
+  h1.page-title {
+    font-size: 20px;
+    border-bottom: 2px solid #111;
+    padding-bottom: 8px;
+    margin-bottom: 24px;
+  }
+
+  section {
+    margin-bottom: 40px;
+  }
+  section h2 {
+    font-size: 16px;
+    border-left: 4px solid #111;
+    padding-left: 8px;
+    margin-bottom: 16px;
+  }
+
+  .form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+    margin-bottom: 12px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .field label {
+    font-size: 12px;
+    color: #555;
+  }
+  .field input {
+    padding: 8px;
+    border: 1px solid #999;
+    font-size: 14px;
+    min-width: 160px;
+  }
+  .inline-btn-group {
+    display: flex;
+    gap: 8px;
+  }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .btn {
+    padding: 8px 16px;
+    background: #111;
+    color: #fff;
+    border: 1px solid #111;
+    font-size: 14px;
+  }
+  .btn:hover { background: #333; }
+  .btn:disabled {
+    background: #aaa;
+    border-color: #aaa;
+    cursor: not-allowed;
+  }
+  .btn-sub {
+    padding: 6px 10px;
+    background: #fff;
+    color: #111;
+    border: 1px solid #111;
+    font-size: 12px;
+  }
+  .btn-sub:hover { background: #eee; }
+  .btn-sub:disabled {
+    color: #aaa;
+    border-color: #ccc;
+    cursor: not-allowed;
+    background: #fff;
+  }
+  .btn-danger {
+    padding: 6px 10px;
+    background: #fff;
+    color: #c0392b;
+    border: 1px solid #c0392b;
+    font-size: 12px;
+  }
+  .btn-danger:hover { background: #fdecea; }
+  .btn-danger:disabled {
+    color: #e0a8a0;
+    border-color: #e0a8a0;
+    cursor: not-allowed;
+    background: #fff;
+  }
+
+  .msg {
+    font-size: 13px;
+    margin-top: 8px;
+    min-height: 1.2em;
+  }
+  .msg.ok { color: #1e7e34; }
+  .msg.err { color: #c0392b; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+    vertical-align: middle;
+  }
+  th {
+    background: #f2f2f2;
+  }
+  tr:nth-child(even) td {
+    background: #fafafa;
+  }
+  .status-registered { color: #1e7e34; font-weight: bold; }
+  .status-unregistered { color: #777; }
+  .action-cell {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .empty-row td {
+    text-align: center;
+    color: #777;
+    padding: 24px;
+  }
+  .loading-row td {
+    text-align: center;
+    color: #777;
+    padding: 24px;
+  }
+
+  @media (max-width: 600px) {
+    .form-row { flex-direction: column; align-items: stretch; }
+    .field input { min-width: 0; width: 100%; }
+    table, thead, tbody, th, td, tr { display: block; }
+    thead { display: none; }
+    tr { margin-bottom: 12px; border: 1px solid #ccc; }
+    td {
+      border: none;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    td::before {
+      content: attr(data-label);
+      font-weight: bold;
+      color: #555;
+      flex-shrink: 0;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- パスワードゲート -->
+<div id="gate">
+  <div class="gate-box">
+    <h1>管理画面ログイン</h1>
+    <div class="gate-error" id="gateError"></div>
+    <input type="password" id="gatePassword" placeholder="パスワードを入力">
+    <button id="gateSubmit">ログイン</button>
+  </div>
+</div>
+
+<!-- 管理画面本体 -->
+<div id="admin">
+  <h1 class="page-title">ライセンス管理画面</h1>
+
+  <section>
+    <h2>ID発行</h2>
+    <div class="form-row">
+      <div class="field">
+        <label for="issueId">ID</label>
+        <input type="text" id="issueId" placeholder="例: nandeya001">
+      </div>
+      <div class="field">
+        <label for="issuePasscode">パスコード</label>
+        <div class="inline-btn-group">
+          <input type="text" id="issuePasscode" placeholder="例: A1B2C3">
+          <button class="btn-sub" id="genPasscodeBtn" type="button">自動生成</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="issueNote">メモ（任意）</label>
+        <input type="text" id="issueNote" placeholder="例: 〇〇さん用">
+      </div>
+      <div class="field">
+        <button class="btn" id="issueBtn" type="button">発行</button>
+      </div>
+    </div>
+    <div class="msg" id="issueMsg"></div>
+  </section>
+
+  <section>
+    <h2>ライセンス一覧</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>パスコード</th>
+          <th>端末登録状況</th>
+          <th>メモ</th>
+          <th>発行日</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="licenseTableBody">
+        <tr class="loading-row"><td colspan="6">読み込み中...</td></tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBSSGdNDndjiUj40m4V4QA6Kjqr-oRnBc8",
+    authDomain: "nandeya-magic-app.firebaseapp.com",
+    projectId: "nandeya-magic-app",
+    storageBucket: "nandeya-magic-app.firebasestorage.app",
+    messagingSenderId: "181170873357",
+    appId: "1:181170873357:web:b3c3fef8aea6390f37a144"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const LICENSES_COLLECTION = "licenses";
+
+  // --- パスワードゲート ---
+  const ADMIN_PASSWORD = "nandeya2024";
+
+  const gateEl = document.getElementById("gate");
+  const adminEl = document.getElementById("admin");
+  const gatePasswordEl = document.getElementById("gatePassword");
+  const gateErrorEl = document.getElementById("gateError");
+  const gateSubmitEl = document.getElementById("gateSubmit");
+
+  function tryUnlock() {
+    const value = gatePasswordEl.value;
+    if (value === ADMIN_PASSWORD) {
+      gateErrorEl.textContent = "";
+      gateEl.classList.add("hidden");
+      adminEl.classList.add("visible");
+      loadLicenses();
+    } else {
+      gateErrorEl.textContent = "パスワードが正しくありません";
+    }
+  }
+
+  gateSubmitEl.addEventListener("click", tryUnlock);
+  gatePasswordEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") tryUnlock();
+  });
+
+  // --- ID発行フォーム ---
+  const issueIdEl = document.getElementById("issueId");
+  const issuePasscodeEl = document.getElementById("issuePasscode");
+  const issueNoteEl = document.getElementById("issueNote");
+  const issueBtnEl = document.getElementById("issueBtn");
+  const genPasscodeBtnEl = document.getElementById("genPasscodeBtn");
+  const issueMsgEl = document.getElementById("issueMsg");
+
+  function generatePasscode(length = 6) {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 紛らわしい文字を除外
+    let result = "";
+    for (let i = 0; i < length; i++) {
+      result += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return result;
+  }
+
+  genPasscodeBtnEl.addEventListener("click", () => {
+    issuePasscodeEl.value = generatePasscode();
+  });
+
+  function setIssueMsg(text, type) {
+    issueMsgEl.textContent = text;
+    issueMsgEl.className = "msg" + (type ? " " + type : "");
+  }
+
+  function setFormDisabled(disabled) {
+    issueIdEl.disabled = disabled;
+    issuePasscodeEl.disabled = disabled;
+    issueNoteEl.disabled = disabled;
+    genPasscodeBtnEl.disabled = disabled;
+    issueBtnEl.disabled = disabled;
+  }
+
+  issueBtnEl.addEventListener("click", async () => {
+    const id = issueIdEl.value.trim();
+    const passcode = issuePasscodeEl.value.trim();
+    const note = issueNoteEl.value.trim();
+
+    if (!id || !passcode) {
+      setIssueMsg("IDとパスコードを入力してください", "err");
+      return;
+    }
+
+    setFormDisabled(true);
+    issueBtnEl.textContent = "処理中...";
+    setIssueMsg("", "");
+
+    try {
+      const ref = doc(db, LICENSES_COLLECTION, id);
+      const existing = await getDoc(ref);
+      if (existing.exists()) {
+        setIssueMsg("このIDは既に使われています", "err");
+        return;
+      }
+
+      await setDoc(ref, {
+        passcode,
+        deviceId: null,
+        createdAt: Date.now(),
+        note: note || ""
+      });
+
+      setIssueMsg("発行しました", "ok");
+      issueIdEl.value = "";
+      issuePasscodeEl.value = "";
+      issueNoteEl.value = "";
+      await loadLicenses();
+    } catch (err) {
+      console.error(err);
+      setIssueMsg("発行に失敗しました: " + (err && err.message ? err.message : err), "err");
+    } finally {
+      setFormDisabled(false);
+      issueBtnEl.textContent = "発行";
+    }
+  });
+
+  // --- 一覧表示 ---
+  const tableBodyEl = document.getElementById("licenseTableBody");
+
+  function escapeHtml(str) {
+    return String(str)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  async function loadLicenses() {
+    tableBodyEl.innerHTML = '<tr class="loading-row"><td colspan="6">読み込み中...</td></tr>';
+
+    try {
+      const snapshot = await getDocs(collection(db, LICENSES_COLLECTION));
+      const items = [];
+      snapshot.forEach((docSnap) => {
+        items.push({ id: docSnap.id, ...docSnap.data() });
+      });
+
+      items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+      if (items.length === 0) {
+        tableBodyEl.innerHTML = '<tr class="empty-row"><td colspan="6">まだライセンスがありません</td></tr>';
+        return;
+      }
+
+      tableBodyEl.innerHTML = "";
+      items.forEach((item) => {
+        const tr = document.createElement("tr");
+
+        const registered = !!item.deviceId;
+        const createdAtText = item.createdAt
+          ? new Date(item.createdAt).toLocaleDateString("ja-JP")
+          : "-";
+
+        tr.innerHTML = `
+          <td data-label="ID">${escapeHtml(item.id)}</td>
+          <td data-label="パスコード">${escapeHtml(item.passcode || "")}</td>
+          <td data-label="端末登録状況">
+            <span class="${registered ? "status-registered" : "status-unregistered"}">
+              ${registered ? "登録済み" : "未登録"}
+            </span>
+          </td>
+          <td data-label="メモ">${escapeHtml(item.note || "")}</td>
+          <td data-label="発行日">${escapeHtml(createdAtText)}</td>
+          <td data-label="操作">
+            <div class="action-cell">
+              <button class="btn-sub reset-btn" type="button" ${registered ? "" : "disabled"}>端末登録をリセット</button>
+              <button class="btn-danger delete-btn" type="button">削除</button>
+            </div>
+          </td>
+        `;
+
+        tr.querySelector(".reset-btn").addEventListener("click", (e) => {
+          handleResetDevice(item.id, e.target);
+        });
+        tr.querySelector(".delete-btn").addEventListener("click", (e) => {
+          handleDelete(item.id, e.target);
+        });
+
+        tableBodyEl.appendChild(tr);
+      });
+    } catch (err) {
+      console.error(err);
+      tableBodyEl.innerHTML = `<tr class="empty-row"><td colspan="6">一覧の取得に失敗しました: ${escapeHtml(err && err.message ? err.message : err)}</td></tr>`;
+    }
+  }
+
+  // --- 削除 ---
+  async function handleDelete(id, buttonEl) {
+    if (!confirm("本当に削除しますか？")) return;
+
+    const original = buttonEl.textContent;
+    buttonEl.disabled = true;
+    buttonEl.textContent = "処理中...";
+
+    try {
+      await deleteDoc(doc(db, LICENSES_COLLECTION, id));
+      await loadLicenses();
+    } catch (err) {
+      console.error(err);
+      alert("削除に失敗しました: " + (err && err.message ? err.message : err));
+      buttonEl.disabled = false;
+      buttonEl.textContent = original;
+    }
+  }
+
+  // --- 端末登録リセット ---
+  async function handleResetDevice(id, buttonEl) {
+    const original = buttonEl.textContent;
+    buttonEl.disabled = true;
+    buttonEl.textContent = "処理中...";
+
+    try {
+      await updateDoc(doc(db, LICENSES_COLLECTION, id), { deviceId: null });
+      await loadLicenses();
+    } catch (err) {
+      console.error(err);
+      alert("端末登録のリセットに失敗しました: " + (err && err.message ? err.message : err));
+      buttonEl.disabled = false;
+      buttonEl.textContent = original;
+    }
+  }
+</script>
+</body>
+</html>
