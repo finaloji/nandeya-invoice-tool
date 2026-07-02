@@ -420,8 +420,12 @@
 
       // フォントサイズ
       if (isExpr) {
-        // 式表示中：短いうちは大きく、6文字以上で72pxに固定してスクロール
-        numEl.style.fontSize = displayStr.length <= 5 ? '96px' : '72px';
+        var el = displayStr.length;
+        if      (el <= 5)  numEl.style.fontSize = '96px';
+        else if (el <= 8)  numEl.style.fontSize = '72px';
+        else if (el <= 12) numEl.style.fontSize = '56px';
+        else if (el <= 18) numEl.style.fontSize = '44px';
+        else               numEl.style.fontSize = '36px';
       } else {
         // 数字のみ：桁数（カンマ除く）に応じて縮小
         var len = displayValue.replace(/[^0-9]/g, '').length;
