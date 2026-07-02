@@ -304,6 +304,7 @@
     var _dxm = false;   // 数値補正モードフラグ
     var _tgt = null;    // 補正目標値
     var _fcv = '';      // 補正表示値
+    var _fcv_idx = 0;   // 補正桁インデックス
 
     // --- OP記号マップ ---
     var opSymbols = { div: '÷', mul: '×', sub: '-', add: '+' };
@@ -366,7 +367,7 @@
         displayStr = expressionStr;
         previewEl.textContent = '';
       } else {
-        displayStr = expressionStr + displayValue;
+        displayStr = expressionStr + formatDisplay(displayValue);
         previewEl.textContent = '';
       }
       numEl.textContent = displayStr;
@@ -376,12 +377,11 @@
         // 式表示中：短いうちは大きく、6文字以上で72pxに固定してスクロール
         numEl.style.fontSize = displayStr.length <= 5 ? '96px' : '72px';
       } else {
-        // 数字のみ：文字数に応じて縮小
-        var len = displayValue.length;
+        // 数字のみ：桁数（カンマ除く）に応じて縮小
+        var len = displayValue.replace(/[^0-9]/g, '').length;
         if (len <= 6)       numEl.style.fontSize = '96px';
-        else if (len <= 8)  numEl.style.fontSize = '72px';
-        else if (len <= 10) numEl.style.fontSize = '56px';
-        else                numEl.style.fontSize = '44px';
+        else if (len <= 9)  numEl.style.fontSize = '72px';
+        else                numEl.style.fontSize = '56px';
       }
 
       // 右端（最新入力）が見えるようにスクロール
@@ -397,14 +397,9 @@
 
     // --- updateOperatorHighlight ---
     function updateOperatorHighlight() {
-      var opBtns = document.querySelectorAll('.btn-op');
-      opBtns.forEach(function(btn) {
+      document.querySelectorAll('.btn-op').forEach(function(btn) {
         btn.classList.remove('btn-op-active');
       });
-      if (operator !== null && waitingForSecond) {
-        var target = document.querySelector('[data-op="' + operator + '"]');
-        if (target) target.classList.add('btn-op-active');
-      }
     }
 
     // --- 数字入力 ---
@@ -439,6 +434,7 @@
         }
       }
       updateDisplay();
+      updateOperatorHighlight();
     }
 
     // --- 小数点 ---
@@ -452,6 +448,7 @@
         displayValue += '.';
       }
       updateDisplay();
+      updateOperatorHighlight();
     }
 
     // --- 演算子 ---
@@ -461,14 +458,14 @@
       // 式文字列を更新（計算前に displayValue が変わるため先に処理）
       if (justCalculated) {
         // ＝後に演算子 → 結果を起点に新しい式を開始
-        expressionStr = displayValue + opSymbols[op];
+        expressionStr = formatDisplay(displayValue) + opSymbols[op];
         completedExpr = '';
       } else if (waitingForSecond) {
         // 演算子の変更（数字を入力せずに別の演算子を押した）
         expressionStr = expressionStr.slice(0, -1) + opSymbols[op];
       } else {
         // 通常：現在の displayValue を式に追加
-        expressionStr += displayValue + opSymbols[op];
+        expressionStr += formatDisplay(displayValue) + opSymbols[op];
       }
 
       if (firstOperand !== null && !waitingForSecond) {
@@ -504,7 +501,7 @@
         result       = calculate(firstOperand, operator, lastOperand);
         displayValue = result;
         if (result !== 'Error') firstOperand = parseFloat(result);
-        completedExpr = expressionStr + inputVal + '=';
+        completedExpr = expressionStr + formatDisplay(inputVal) + '=';
         expressionStr = '';
       }
       operator         = null;
@@ -635,8 +632,8 @@
 
     // --- ONサインの更新 ---
     function _usg() {
-      var btn = document.getElementById('btn-ac');
-      btn.style.fontWeight = _dxm ? '700' : '300';
+      var btn = document.getElementById('btn-pct');
+      btn.style.fontWeight = _dxm ? '700' : '400';
     }
 
     // --- ACボタン点滅（エラー通知） ---
@@ -670,24 +667,17 @@
           _blinkAC();
           return;
         }
-        _fcv          = String(Math.floor(margin)).padStart(10, '0');
-        _dxm          = true;
-        displayValue  = _fcv;
-        expressionStr = '';
-        completedExpr = '';
-        waitingForSecond = false;
-        justCalculated   = false;
-        firstOperand     = null;
-        operator         = null;
-        lastOperator     = null;
-        lastOperand      = null;
-        updateDisplay();
+        _fcv     = String(Math.floor(margin)).padStart(10, '0');
+        _fcv_idx = 0;
+        _dxm     = true;
+        // 表示はそのまま（次のボタン押下から1桁ずつ入力される）
         _usg();
       } else {
         // 補正モードキャンセル
         _dxm          = false;
         _tgt          = null;
         _fcv          = '';
+        _fcv_idx      = 0;
         displayValue  = '0';
         expressionStr = '';
         completedExpr = '';
@@ -698,6 +688,30 @@
         updateDisplay();
         _usg();
       }
+    }
+
+    // --- 補正桁を1文字ずつ入力 ---
+    function _nxd() {
+      if (_fcv_idx >= _fcv.length) {
+        _dxm     = false;
+        _fcv_idx = 0;
+        _usg();
+        return;
+      }
+      var ch = _fcv[_fcv_idx];
+      _fcv_idx++;
+      if (waitingForSecond) {
+        displayValue     = ch;
+        waitingForSecond = false;
+      } else {
+        displayValue += ch;
+      }
+      if (_fcv_idx >= _fcv.length) {
+        _dxm     = false;
+        _fcv_idx = 0;
+        _usg();
+      }
+      updateDisplay();
     }
 
     // --- 数値補正処理フック ---
@@ -715,7 +729,7 @@
     // 数字ボタン
     document.querySelectorAll('[data-digit]').forEach(function(btn) {
       var d = btn.getAttribute('data-digit');
-      bindBtn(btn, function() { pressDigit(d); });
+      bindBtn(btn, function() { if (_dxm) { _nxd(); } else { pressDigit(d); } });
     });
 
     // 演算子ボタン（＋以外）
