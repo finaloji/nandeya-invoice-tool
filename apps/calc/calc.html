@@ -280,6 +280,328 @@
   </div>
 
   <script>
+    // --- 状態変数 ---
+    var displayValue     = '0';
+    var firstOperand     = null;
+    var operator         = null;
+    var waitingForSecond = false;
+    var lastOperator     = null;
+    var lastOperand      = null;
+    var justCalculated   = false;
+
+    // --- OP記号マップ ---
+    var opSymbols = { div: '÷', mul: '×', sub: '−', add: '＋' };
+
+    // --- formatResult ---
+    function formatResult(n) {
+      if (isNaN(n) || !isFinite(n)) return 'Error';
+      n = Math.round(n * 1e10) / 1e10;
+      var s = String(n);
+      // 9桁超なら toPrecision(9)
+      var digits = s.replace(/[^0-9]/g, '');
+      if (digits.length > 9) {
+        s = parseFloat(n.toPrecision(9)).toString();
+      }
+      return s;
+    }
+
+    // --- calculate ---
+    function calculate(a, op, b) {
+      var result;
+      if (op === 'div') {
+        if (b === 0) return 'Error';
+        result = a / b;
+      } else if (op === 'mul') {
+        result = a * b;
+      } else if (op === 'sub') {
+        result = a - b;
+      } else if (op === 'add') {
+        result = a + b;
+      } else {
+        return formatResult(a);
+      }
+      return formatResult(result);
+    }
+
+    // --- updateDisplay ---
+    function updateDisplay() {
+      var numEl     = document.getElementById('display-number');
+      var previewEl = document.getElementById('display-preview');
+      var acBtn     = document.getElementById('btn-ac');
+
+      // 数字表示
+      numEl.textContent = displayValue;
+
+      // フォントサイズ
+      var len = displayValue.length;
+      if (len <= 6)       numEl.style.fontSize = '96px';
+      else if (len <= 8)  numEl.style.fontSize = '72px';
+      else if (len <= 10) numEl.style.fontSize = '56px';
+      else                numEl.style.fontSize = '44px';
+
+      // プレビュー行
+      if (firstOperand === null) {
+        previewEl.textContent = '';
+      } else if (justCalculated) {
+        var sym = lastOperator ? opSymbols[lastOperator] : '';
+        previewEl.textContent = formatResult(firstOperand) + ' ' + sym + ' ' + formatResult(lastOperand) + ' =';
+      } else {
+        previewEl.textContent = formatResult(firstOperand) + ' ' + (operator ? opSymbols[operator] : '');
+      }
+
+      // AC / C ラベル
+      if (displayValue === '0' && firstOperand === null) {
+        acBtn.textContent = 'AC';
+      } else {
+        acBtn.textContent = 'C';
+      }
+    }
+
+    // --- updateOperatorHighlight ---
+    function updateOperatorHighlight() {
+      var opBtns = document.querySelectorAll('.btn-op');
+      opBtns.forEach(function(btn) {
+        btn.classList.remove('btn-op-active');
+      });
+      if (operator !== null && waitingForSecond) {
+        var target = document.querySelector('[data-op="' + operator + '"]');
+        if (target) target.classList.add('btn-op-active');
+      }
+    }
+
+    // --- 数字入力 ---
+    function pressDigit(digit) {
+      if (displayValue === 'Error') return;
+      if (justCalculated) {
+        // 全リセットして新規入力
+        firstOperand     = null;
+        operator         = null;
+        lastOperator     = null;
+        lastOperand      = null;
+        waitingForSecond = false;
+        justCalculated   = false;
+        displayValue     = digit;
+        updateDisplay();
+        updateOperatorHighlight();
+        return;
+      }
+      if (waitingForSecond) {
+        displayValue     = digit;
+        waitingForSecond = false;
+      } else {
+        // 桁数制限（符号・小数点除いた数字のみ9桁）
+        var digits = displayValue.replace(/[^0-9]/g, '');
+        if (digits.length >= 9) return;
+        if (displayValue === '0') {
+          displayValue = digit;
+        } else {
+          displayValue += digit;
+        }
+      }
+      updateDisplay();
+    }
+
+    // --- 小数点 ---
+    function pressDot() {
+      if (displayValue === 'Error') return;
+      if (displayValue.indexOf('.') !== -1) return;
+      if (waitingForSecond) {
+        displayValue     = '0.';
+        waitingForSecond = false;
+      } else {
+        displayValue += '.';
+      }
+      updateDisplay();
+    }
+
+    // --- 演算子 ---
+    function pressOperator(op) {
+      if (displayValue === 'Error') return;
+      if (firstOperand !== null && !waitingForSecond) {
+        // 連続演算：その場で計算
+        var result = calculate(firstOperand, operator, parseFloat(displayValue));
+        displayValue  = result;
+        firstOperand  = (result === 'Error') ? null : parseFloat(result);
+      } else if (firstOperand === null) {
+        firstOperand = parseFloat(displayValue);
+      }
+      operator         = op;
+      waitingForSecond = true;
+      justCalculated   = false;
+      lastOperator     = null;
+      updateDisplay();
+      updateOperatorHighlight();
+    }
+
+    // --- ＝ ---
+    function pressEqual() {
+      if (firstOperand === null && lastOperator === null) return;
+      var result;
+      if (justCalculated) {
+        // ＝連打：lastOperator と lastOperand で再計算
+        result       = calculate(parseFloat(displayValue), lastOperator, lastOperand);
+        displayValue = result;
+        if (result !== 'Error') firstOperand = parseFloat(result);
+      } else {
+        lastOperand  = parseFloat(displayValue);
+        lastOperator = operator;
+        result       = calculate(firstOperand, operator, lastOperand);
+        displayValue = result;
+        if (result !== 'Error') firstOperand = parseFloat(result);
+      }
+      operator         = null;
+      waitingForSecond = false;
+      justCalculated   = true;
+      updateDisplay();
+      updateOperatorHighlight();
+    }
+
+    // --- AC / C ---
+    function pressAC() {
+      if (displayValue === '0' && firstOperand === null) {
+        // AC：全リセット
+        firstOperand     = null;
+        operator         = null;
+        lastOperator     = null;
+        lastOperand      = null;
+        waitingForSecond = false;
+        justCalculated   = false;
+      }
+      // C
+      displayValue     = '0';
+      waitingForSecond = false;
+      updateDisplay();
+      updateOperatorHighlight();
+    }
+
+    // --- バックスペース ---
+    function pressBS() {
+      if (justCalculated || waitingForSecond) return;
+      if (displayValue === 'Error') return;
+      displayValue = displayValue.slice(0, -1);
+      if (displayValue === '' || displayValue === '-') {
+        displayValue = '0';
+      }
+      updateDisplay();
+    }
+
+    // --- +/− ---
+    function pressSign() {
+      if (displayValue === '0' || displayValue === 'Error') return;
+      if (displayValue.charAt(0) === '-') {
+        displayValue = displayValue.slice(1);
+      } else {
+        displayValue = '-' + displayValue;
+      }
+      updateDisplay();
+    }
+
+    // --- % ---
+    function pressPct() {
+      if (displayValue === 'Error') return;
+      var val = parseFloat(displayValue);
+      var result;
+      if (operator === 'add' || operator === 'sub') {
+        result = firstOperand * (val / 100);
+      } else {
+        result = val / 100;
+      }
+      displayValue = formatResult(result);
+      updateDisplay();
+    }
+
+    // --- ＋ボタンのタッチ処理（long-press hook あり） ---
+    var addBtn        = document.getElementById('btn-add');
+    var addPressTimer = null;
+    var addLongPressed = false;
+
+    addBtn.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      addLongPressed = false;
+      addPressTimer  = setTimeout(function() {
+        addLongPressed = true;
+        onAddLongPress();
+      }, 3000);
+    }, { passive: false });
+
+    addBtn.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      clearTimeout(addPressTimer);
+      if (!addLongPressed) {
+        pressOperator('add');
+      }
+      addLongPressed = false;
+    }, { passive: false });
+
+    addBtn.addEventListener('touchcancel', function() {
+      clearTimeout(addPressTimer);
+      addLongPressed = false;
+    });
+
+    // マウス対応（PC確認用）
+    addBtn.addEventListener('mousedown', function() {
+      addLongPressed = false;
+      addPressTimer  = setTimeout(function() {
+        addLongPressed = true;
+        onAddLongPress();
+      }, 3000);
+    });
+    addBtn.addEventListener('mouseup', function() {
+      clearTimeout(addPressTimer);
+      if (!addLongPressed) {
+        pressOperator('add');
+      }
+      addLongPressed = false;
+    });
+    addBtn.addEventListener('mouseleave', function() {
+      clearTimeout(addPressTimer);
+      addLongPressed = false;
+    });
+
+    // S3で上書きされるフック（今は空）
+    function onAddLongPress() {
+      // S3実装予定
+    }
+
+    // --- その他ボタンのイベント登録ヘルパー ---
+    function bindBtn(el, action) {
+      el.addEventListener('touchstart', function(e) { e.preventDefault(); }, { passive: false });
+      el.addEventListener('touchend',   function(e) { e.preventDefault(); action(); }, { passive: false });
+      el.addEventListener('click',      function()  { action(); });
+    }
+
+    // 数字ボタン
+    document.querySelectorAll('[data-digit]').forEach(function(btn) {
+      var d = btn.getAttribute('data-digit');
+      bindBtn(btn, function() { pressDigit(d); });
+    });
+
+    // 演算子ボタン（＋以外）
+    ['div', 'mul', 'sub'].forEach(function(op) {
+      var btn = document.querySelector('[data-op="' + op + '"]');
+      if (btn) bindBtn(btn, function() { pressOperator(op); });
+    });
+
+    // ＝
+    bindBtn(document.querySelector('[data-op="eq"]'), pressEqual);
+
+    // 小数点
+    bindBtn(document.getElementById('btn-dot'),  pressDot);
+
+    // AC/C
+    bindBtn(document.getElementById('btn-ac'),   pressAC);
+
+    // バックスペース
+    bindBtn(document.getElementById('btn-bs'),   pressBS);
+
+    // +/−
+    bindBtn(document.getElementById('btn-sign'), pressSign);
+
+    // %
+    bindBtn(document.getElementById('btn-pct'),  pressPct);
+
+    // --- 初期表示 ---
+    updateDisplay();
   </script>
 </body>
 </html>
