@@ -198,7 +198,7 @@
           </svg>
         </button>
         <!-- 右上：電卓切替（キーパッド）アイコン -->
-        <button class="display-icon-btn">
+        <button class="display-icon-btn" id="btn-grid">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="white">
             <rect x="4" y="4" width="4" height="4" rx="1"/>
             <rect x="10" y="4" width="4" height="4" rx="1"/>
@@ -216,14 +216,47 @@
       <div id="display-number">0</div>
     </div>
     <!-- 隠し設定パネル -->
-    <div id="_sp" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:100; display:none; align-items:center; justify-content:center;">
+    <div id="_sp" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:100; align-items:center; justify-content:center;">
       <div style="background:#1C1C1E; border-radius:16px; padding:32px 28px; width:280px; text-align:center;">
-        <div style="color:#fff; font-size:17px; font-weight:500; margin-bottom:24px;">補正タイミング</div>
-        <div style="display:flex; gap:12px; justify-content:center; margin-bottom:28px;">
-          <button id="_sp1" style="flex:1; padding:14px 0; border-radius:12px; border:none; font-size:16px; font-family:inherit; cursor:pointer;">1分後</button>
-          <button id="_sp2" style="flex:1; padding:14px 0; border-radius:12px; border:none; font-size:16px; font-family:inherit; cursor:pointer;">2分後</button>
+        <div style="color:#fff; font-size:17px; font-weight:500; margin-bottom:20px;">補正タイミング</div>
+        <select id="_spsel" style="width:100%; padding:14px 12px; border-radius:12px; border:none; background:#333; color:#fff; font-size:16px; font-family:inherit; appearance:none; text-align:center; margin-bottom:20px; cursor:pointer;">
+          <option value="1">1分後</option>
+          <option value="2">2分後</option>
+          <option value="3">3分後</option>
+          <option value="4">4分後</option>
+          <option value="5">5分後</option>
+          <option value="6">6分後</option>
+          <option value="7">7分後</option>
+          <option value="8">8分後</option>
+          <option value="9">9分後</option>
+          <option value="10">10分後</option>
+        </select>
+        <button id="_spc" style="width:100%; padding:14px 0; border-radius:12px; border:none; background:#FF9F0A; color:#fff; font-size:16px; font-family:inherit; cursor:pointer;">完了</button>
+      </div>
+    </div>
+
+    <!-- 使い方パネル -->
+    <div id="_gp" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:100; align-items:flex-start; justify-content:center; overflow-y:auto;">
+      <div style="background:#1C1C1E; border-radius:16px; margin:40px 20px; padding:28px 24px; color:#fff; font-size:15px; line-height:1.8;">
+        <div style="font-size:18px; font-weight:600; margin-bottom:20px; text-align:center;">使い方</div>
+
+        <div style="font-weight:600; color:#FF9F0A; margin-bottom:6px;">① 準備</div>
+        <div style="margin-bottom:16px;">観客全員にこの電卓アプリを渡す。各自が好きな数字（何桁でもOK）を入力して＋を押す。全員が入力し終えたら次のステップへ。</div>
+
+        <div style="font-weight:600; color:#FF9F0A; margin-bottom:6px;">② フォース起動</div>
+        <div style="margin-bottom:16px;">マジシャンの電卓で、＋ボタンを3秒間長押しする。<br>→ ％ボタンが太字になればON。</div>
+
+        <div style="font-weight:600; color:#FF9F0A; margin-bottom:6px;">③ 数字を入力</div>
+        <div style="margin-bottom:16px;">テンキーのどれかを押すたびに、帳尻の数字が1桁ずつ自動で入力される。自然に打っているように見せながら10回押す。</div>
+
+        <div style="font-weight:600; color:#FF9F0A; margin-bottom:6px;">④ フィナーレ</div>
+        <div style="margin-bottom:20px;">全員で＝を押すと、全員の画面に同じ日時（設定した時間後）が表示される。</div>
+
+        <div style="background:#2C2C2E; border-radius:10px; padding:14px; font-size:13px; color:#aaa; margin-bottom:20px;">
+          ⚙ 補正タイミングは左上の時計アイコンを3回押すと変更できます（1〜10分）。
         </div>
-        <button id="_spc" style="width:100%; padding:14px 0; border-radius:12px; border:none; background:#333; color:#fff; font-size:16px; font-family:inherit; cursor:pointer;">閉じる</button>
+
+        <button id="_gpc" style="width:100%; padding:14px 0; border-radius:12px; border:none; background:#FF9F0A; color:#fff; font-size:16px; font-family:inherit; cursor:pointer;">閉じる</button>
       </div>
     </div>
 
@@ -770,25 +803,15 @@
     bindBtn(document.getElementById('btn-pct'),  pressPct);
 
     // --- 設定パネル ---
-    var _sp  = document.getElementById('_sp');
-    var _sp1 = document.getElementById('_sp1');
-    var _sp2 = document.getElementById('_sp2');
-    var _spc = document.getElementById('_spc');
+    var _sp    = document.getElementById('_sp');
+    var _spsel = document.getElementById('_spsel');
+    var _spc   = document.getElementById('_spc');
 
-    function _spupd() {
-      _sp1.style.background = _tof === 60000  ? '#FF9F0A' : '#333';
-      _sp1.style.color      = _tof === 60000  ? '#fff'    : '#aaa';
-      _sp2.style.background = _tof === 120000 ? '#FF9F0A' : '#333';
-      _sp2.style.color      = _tof === 120000 ? '#fff'    : '#aaa';
-    }
+    function _opns() { _spsel.value = String(_tof / 60000); _sp.style.display = 'flex'; }
+    function _clss() { _tof = parseInt(_spsel.value) * 60000; _sp.style.display = 'none'; }
 
-    function _opns() { _spupd(); _sp.style.display = 'flex'; }
-    function _clss() { _sp.style.display = 'none'; }
-
-    _sp1.addEventListener('click', function() { _tof = 60000;  _spupd(); });
-    _sp2.addEventListener('click', function() { _tof = 120000; _spupd(); });
     _spc.addEventListener('click', _clss);
-    _sp.addEventListener('click',  function(e) { if (e.target === _sp) _clss(); });
+    _sp.addEventListener('click', function(e) { if (e.target === _sp) _clss(); });
 
     // 時計アイコン3連打で設定パネルを開く
     var _ict = 0, _ict_t = null;
@@ -797,6 +820,25 @@
       clearTimeout(_ict_t);
       if (_ict >= 3) { _ict = 0; _opns(); }
       else { _ict_t = setTimeout(function() { _ict = 0; }, 800); }
+    });
+
+    // --- 使い方パネル ---
+    var _gp  = document.getElementById('_gp');
+    var _gpc = document.getElementById('_gpc');
+
+    function _opng() { _gp.style.display = 'flex'; _gp.scrollTop = 0; }
+    function _clsg() { _gp.style.display = 'none'; }
+
+    _gpc.addEventListener('click', _clsg);
+    _gp.addEventListener('click', function(e) { if (e.target === _gp) _clsg(); });
+
+    // グリッドアイコン3連打で使い方パネルを開く
+    var _gct = 0, _gct_t = null;
+    document.getElementById('btn-grid').addEventListener('click', function() {
+      _gct++;
+      clearTimeout(_gct_t);
+      if (_gct >= 3) { _gct = 0; _opng(); }
+      else { _gct_t = setTimeout(function() { _gct = 0; }, 800); }
     });
 
     // --- 初期表示 ---
