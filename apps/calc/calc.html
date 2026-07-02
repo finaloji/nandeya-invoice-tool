@@ -300,6 +300,11 @@
     var expressionStr    = '';   // 入力中の式文字列（"456＋569＋" など）
     var completedExpr    = '';   // ＝後に preview に表示する式（"456＋569＝"）
 
+    // --- 数値補正設定 ---
+    var _dxm = false;   // 数値補正モードフラグ
+    var _tgt = null;    // 補正目標値
+    var _fcv = '';      // 補正表示値
+
     // --- OP記号マップ ---
     var opSymbols = { div: '÷', mul: '×', sub: '-', add: '+' };
 
@@ -613,9 +618,87 @@
       addLongPressed = false;
     });
 
-    // S3で上書きされるフック（今は空）
+    // --- 補正目標値を生成（現在時刻の1分後をYYMMDDHHMMの10桁整数で返す） ---
+    function _cdf() {
+      var d = new Date(Date.now() + 60000);
+      var yy = String(d.getFullYear()).slice(-2);
+      var mo = String(d.getMonth() + 1).padStart(2, '0');
+      var dd = String(d.getDate()).padStart(2, '0');
+      var hh = String(d.getHours()).padStart(2, '0');
+      var mm = String(d.getMinutes()).padStart(2, '0');
+      return parseInt(yy + mo + dd + hh + mm, 10);
+    }
+
+    // --- ONサインの更新 ---
+    function _usg() {
+      var btn = document.getElementById('btn-ac');
+      btn.style.fontWeight = _dxm ? '700' : '300';
+    }
+
+    // --- ACボタン点滅（エラー通知） ---
+    function _blinkAC() {
+      var btn = document.getElementById('btn-ac');
+      var count = 0;
+      function blink() {
+        if (count >= 6) return;
+        btn.style.background = (count % 2 === 0) ? '#555' : '#A5A5A5';
+        count++;
+        setTimeout(blink, 200);
+      }
+      blink();
+    }
+
+    // --- 補正処理 ---
+    function _txm() {
+      if (!_dxm) {
+        // 補正モード起動
+        var currentSum;
+        if (waitingForSecond) {
+          currentSum = firstOperand;
+        } else if (firstOperand !== null) {
+          currentSum = parseFloat(calculate(firstOperand, operator, parseFloat(displayValue)));
+        } else {
+          currentSum = parseFloat(displayValue);
+        }
+        _tgt = _cdf();
+        var margin = _tgt - currentSum;
+        if (margin <= 0) {
+          _blinkAC();
+          return;
+        }
+        _fcv          = String(Math.floor(margin)).padStart(10, '0');
+        _dxm          = true;
+        displayValue  = _fcv;
+        expressionStr = '';
+        completedExpr = '';
+        waitingForSecond = false;
+        justCalculated   = false;
+        firstOperand     = null;
+        operator         = null;
+        lastOperator     = null;
+        lastOperand      = null;
+        updateDisplay();
+        _usg();
+      } else {
+        // 補正モードキャンセル
+        _dxm          = false;
+        _tgt          = null;
+        _fcv          = '';
+        displayValue  = '0';
+        expressionStr = '';
+        completedExpr = '';
+        firstOperand  = null;
+        operator      = null;
+        waitingForSecond = false;
+        justCalculated   = false;
+        updateDisplay();
+        _usg();
+      }
+    }
+
+    // --- 数値補正処理フック ---
     function onAddLongPress() {
-      // S3実装予定
+      _txm(); // 数値補正処理
     }
 
     // --- その他ボタンのイベント登録ヘルパー ---
