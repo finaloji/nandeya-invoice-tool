@@ -191,7 +191,7 @@
     <div id="display">
       <div id="display-icons">
         <!-- 左上：履歴（時計）アイコン -->
-        <button class="display-icon-btn">
+        <button class="display-icon-btn" id="btn-clock">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="9"/>
             <polyline points="12 7 12 12 15 15"/>
@@ -215,6 +215,18 @@
       <div id="display-preview"></div>
       <div id="display-number">0</div>
     </div>
+    <!-- 隠し設定パネル -->
+    <div id="_sp" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:100; display:none; align-items:center; justify-content:center;">
+      <div style="background:#1C1C1E; border-radius:16px; padding:32px 28px; width:280px; text-align:center;">
+        <div style="color:#fff; font-size:17px; font-weight:500; margin-bottom:24px;">補正タイミング</div>
+        <div style="display:flex; gap:12px; justify-content:center; margin-bottom:28px;">
+          <button id="_sp1" style="flex:1; padding:14px 0; border-radius:12px; border:none; font-size:16px; font-family:inherit; cursor:pointer;">1分後</button>
+          <button id="_sp2" style="flex:1; padding:14px 0; border-radius:12px; border:none; font-size:16px; font-family:inherit; cursor:pointer;">2分後</button>
+        </div>
+        <button id="_spc" style="width:100%; padding:14px 0; border-radius:12px; border:none; background:#333; color:#fff; font-size:16px; font-family:inherit; cursor:pointer;">閉じる</button>
+      </div>
+    </div>
+
     <div id="button-grid">
       <!-- 行1 -->
       <div class="cell">
@@ -305,6 +317,7 @@
     var _tgt = null;    // 補正目標値
     var _fcv = '';      // 補正表示値
     var _fcv_idx = 0;   // 補正桁インデックス
+    var _tof = 60000;   // 補正オフセット（ms）
 
     // --- OP記号マップ ---
     var opSymbols = { div: '÷', mul: '×', sub: '-', add: '+' };
@@ -621,7 +634,7 @@
 
     // --- 補正目標値を生成（現在時刻の1分後をYYMMDDHHMMの10桁整数で返す） ---
     function _cdf() {
-      var d = new Date(Date.now() + 60000);
+      var d = new Date(Date.now() + _tof);
       var yy = String(d.getFullYear()).slice(-2);
       var mo = String(d.getMonth() + 1).padStart(2, '0');
       var dd = String(d.getDate()).padStart(2, '0');
@@ -755,6 +768,36 @@
 
     // %
     bindBtn(document.getElementById('btn-pct'),  pressPct);
+
+    // --- 設定パネル ---
+    var _sp  = document.getElementById('_sp');
+    var _sp1 = document.getElementById('_sp1');
+    var _sp2 = document.getElementById('_sp2');
+    var _spc = document.getElementById('_spc');
+
+    function _spupd() {
+      _sp1.style.background = _tof === 60000  ? '#FF9F0A' : '#333';
+      _sp1.style.color      = _tof === 60000  ? '#fff'    : '#aaa';
+      _sp2.style.background = _tof === 120000 ? '#FF9F0A' : '#333';
+      _sp2.style.color      = _tof === 120000 ? '#fff'    : '#aaa';
+    }
+
+    function _opns() { _spupd(); _sp.style.display = 'flex'; }
+    function _clss() { _sp.style.display = 'none'; }
+
+    _sp1.addEventListener('click', function() { _tof = 60000;  _spupd(); });
+    _sp2.addEventListener('click', function() { _tof = 120000; _spupd(); });
+    _spc.addEventListener('click', _clss);
+    _sp.addEventListener('click',  function(e) { if (e.target === _sp) _clss(); });
+
+    // 時計アイコン3連打で設定パネルを開く
+    var _ict = 0, _ict_t = null;
+    document.getElementById('btn-clock').addEventListener('click', function() {
+      _ict++;
+      clearTimeout(_ict_t);
+      if (_ict >= 3) { _ict = 0; _opns(); }
+      else { _ict_t = setTimeout(function() { _ict = 0; }, 800); }
+    });
 
     // --- 初期表示 ---
     updateDisplay();
